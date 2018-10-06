@@ -34,25 +34,39 @@ namespace Manager2
             return _messages;
         }
     };
-
+   
     class Distribution
     {
-        static long _totalCountPsw = 4432676798592;
-        static long _currentPos = 0;
-
-        public static void NewRangeForAgent(MessageQueue queue, Agent agent, int countTask)
+        static public List<string> usedRange = new List<string>();
+        static public long _totalCountPsw = 4432676798592;
+        static public long _countRangeOutput = 0;
+        
+        public static void NewRangeForAgent(MessageQueue queue, Agent agent, List<HashConvol> hashPackage, int countTask)
         {
             for (int i = 0; i < countTask; ++i)
             {
-                long startRange = _currentPos;
+                long indexHashW = _countRangeOutput % hashPackage.Count();
+                long startRange = hashPackage[(int)indexHashW].GetCurrentPos();
                 long countPswInRange = agent.GetSpeed();
 
                 countPswInRange = (startRange + countPswInRange) < _totalCountPsw ? countPswInRange : _totalCountPsw - startRange + 1;
 
                 if (startRange < _totalCountPsw)
-                    queue.Send(startRange + " " + countPswInRange, agent.GetIp());
+                {
+                    queue.Send(hashPackage[(int)indexHashW].GetHashStr() + " " + startRange + " " + countPswInRange, agent.GetIp());
+                    usedRange.Add(agent.GetIp() + " " + hashPackage[(int)indexHashW].GetHashStr() + " " + startRange + " " + countPswInRange);
+                }
 
-                _currentPos += countPswInRange + 1;
+                ++_countRangeOutput;
+                hashPackage[(int)indexHashW].SetCurrentPos(countPswInRange);
+            }
+        }
+
+        public static void OldRangeForAgent(List<Agent> agents)
+        {
+            foreach(string range in usedRange)
+            {
+
             }
         }
    
