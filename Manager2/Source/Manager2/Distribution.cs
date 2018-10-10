@@ -49,7 +49,7 @@ namespace Manager2
 
                 if (startRange < _totalCountPsw)
                 {
-                    queue.Send(allHash + "+" + startRange + " " + countPswInRange, agent.GetIp());
+                    queue.Send(allHash + ";" + startRange + " " + countPswInRange, agent.GetIp());
                     _usedRange.Add(agent.GetIp() + ";" + allHash + ";" + startRange + " " + countPswInRange);
                     _currentPosInRange += countPswInRange + 1;
                 }
@@ -100,7 +100,7 @@ namespace Manager2
                     indexCurrentAgent = _countMessage % agents.Count();       
                     countPswInRange = agents[indexCurrentAgent].GetSpeed() > totalPswInRange ? totalPswInRange : agents[indexCurrentAgent].GetSpeed();
 
-                    queue.Send(dataArr[1] + "+" + " " + startRange + " " + countPswInRange, agents[indexCurrentAgent].GetIp());
+                    queue.Send(dataArr[1] + ";" + startRange + " " + countPswInRange, agents[indexCurrentAgent].GetIp());
                     tempUsedRange.Add(agents[indexCurrentAgent].GetIp() + ";" + dataArr[1] + ";" + startRange + " " + countPswInRange);
 
                     totalPswInRange -= countPswInRange;

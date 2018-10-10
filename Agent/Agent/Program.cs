@@ -6,16 +6,26 @@ using System.Threading.Tasks;
 using System.Messaging;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
 
 namespace Agent
 {   
+    public struct Task
+    {
+        public List<string> _hash;
+        public long startPos;
+        public long countPasswords;
+    }
+
     public class Agent
     {
+        private string _id = null;
+        public Task task;
         private string _ip;
-        private MessageQueue _queue;
+        public MessageQueue _queue;
         private int _core;
         private int _speed;
-        private string _password;
+        private string _message;
 
         char[] alphabet = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
                             'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
@@ -34,28 +44,62 @@ namespace Agent
 
         private void SendStatusMessage()
         {
-            _queue.Send(_ip + " " + _speed + " " + _core, _ip);//"Status");
+            _queue.Send(_ip + " " + _speed + " " + _core, "ManagerStart");
         }
 
-        private void SetPassPerSeconds()
+        public void SetPassPerSeconds()
         {
-            long startPos = (long)Math.Pow(128, 6) / 2;
-            //long startPos = 0;
-            long countPasswords = 1000000;
+            task.startPos = (long)Math.Pow(128, 6) / 2;
+            task.countPasswords = 1000000;
+            task._hash = new List<string>() { "aaa" };
             DateTime start = DateTime.Now;
-            if (CheckPasswords("0CC175B9C0F1B6A831C399E269772661", startPos, countPasswords))
-                Console.WriteLine("Кажется мы нашли коллизию");
+            Solver();
             DateTime end = DateTime.Now;
-            _speed = (int)countPasswords * 1000 / (int)(end.Subtract(start)).TotalMilliseconds;
+            _speed = (int)task.countPasswords * 1000 / (int)(end.Subtract(start)).TotalMilliseconds;
+        }
+        public void SendGoodMessage(string password, string hash)
+        {
+            _queue.Send(hash + " " + password, "ManagerSOLVED");
+            task._hash.Remove(hash);
         }
 
-        public bool CheckPasswords(string hash, long startPos, long countPasswords)
+        public void Solver()
         {
-            //long countAllPasswords = (long)Math.Pow(128, 1) + (long)Math.Pow(128, 2) + (long)Math.Pow(128, 3) + (long)Math.Pow(128, 4) + (long)Math.Pow(128, 5) + (long)Math.Pow(128, 6);
-            long countAllPasswords = 4432676798592;
+            if(task._hash.Count() > 0)
+            {
+                List<Thread> therds = new List<Thread>();
+                for (int i = 0; i < _core * 2; i++)
+                {
+                    Thread thread = new Thread(this.func);
+                    therds.Add(thread);
+                    string num = (task.startPos + i * task.countPasswords / (_core * 2)) + " " + (task.countPasswords / (_core * 2));
+                    thread.Start(num);
+                }
+                foreach (Thread t in therds)
+                {
+                    t.Join();
+                }
+                task._hash.Clear();
+                if(0 < _speed)
+                {
+                    _queue.Send(_ip + ";" + _message, "Range");
+                    SendStatusMessage();
+                }
+            }
+        }
+
+        void func(object num)//Функция потока, передаем параметр
+        {
+            string[] param = num.ToString().Split(' ');
+            CheckPasswords(Convert.ToInt64(param[0]), Convert.ToInt64(param[1]));
+        }
+
+        public void CheckPasswords(long startPos, long countPasswords)
+        {
+           long countAllPasswords = 4432676798592;
             if (countAllPasswords < startPos + countPasswords)
                 countPasswords = countAllPasswords - startPos;
-            for(long i = 0; i <= countPasswords; i++)
+            for(long i = 0; i <= countPasswords && 0 < task._hash.Count(); i++)
             {
                 long numberOfPassword = startPos + i;
                 string password = "";
@@ -65,13 +109,15 @@ namespace Agent
                     numberOfPassword = numberOfPassword / 128;
                 }
                 while (numberOfPassword != 0);
-                if (CalculateMD5Hash(password) == hash)
-                {
-                    _password = password;
-                    return true;
-                }
+                string newHash = CalculateMD5Hash(password);
+                for(int j = 0; j < task._hash.Count(); j++)
+                    if (newHash == task._hash[j])
+                    {
+                        Console.WriteLine("Подобрали пароль к свертке: {0} : {1}", task._hash[j], password);
+                        SendGoodMessage(password, task._hash[j]);
+                        j--;
+                    }
             }
-            return false;
         }
 
         public string CalculateMD5Hash(string password)
@@ -88,94 +134,58 @@ namespace Agent
 
             return sb.ToString();
         }
+        public void CheckMessage()
+        {
+            foreach (Message message in _queue)
+            {
+                if (message.Label == _ip)
+                {
+                    Console.WriteLine("Получили сообщение");
+                    Console.WriteLine(message.Body.ToString());
+                    SetParam(message.Body.ToString());
+                    _id = message.Id;
+                }
+            }
+            if(_id != null)
+            {
+                _queue.Send(_id, "ManagerDELETE");
+                _id = null;
+            }
+        }
+
+        private void SetParam(string message)
+        {
+            _message = message;
+            string[] param = message.ToString().Split(';');
+            string[] hash = param[0].ToString().Split(' ');
+            string[] count = param[1].ToString().Split(' ');
+            task.startPos = Convert.ToInt64(count[0]);
+            task.countPasswords = Convert.ToInt64(count[1]);
+            task._hash.Clear();
+            foreach (string data in hash)
+                task._hash.Add(data);
+        }
 
         public Agent()
         {
             string path = File.ReadAllText("settings.ini");
-
-            /*if (MessageQueue.Exists(path))
-            {
-                var queue = new MessageQueue(path);
-            }
-            else
-            {
-               Console.WriteLine("Очередь не существует");
-            }*/
             _queue = new MessageQueue(path);//нет никаких проверок, надо потом подумать
+            foreach(Message message in _queue)
+            {
+                if(message.Label == "Start")
+                {
+                    Console.WriteLine("Нашли стартовое сообщение");
+                    //_id = message.Id;
+                }
+            }
             SetCoreCount();
-            SetPassPerSeconds();
             SetIp();
-            SendStatusMessage();
+            SetPassPerSeconds();
             Console.WriteLine("Подключились к очереди: {0}", path);
             Console.WriteLine("Скорость: {0} паролей в секунду", _speed);
             Console.WriteLine("Доступно ядер: {0}", _core);
             Console.WriteLine("ip: {0}", _ip);
-
-            foreach (Message message in _queue)
-                if(message.Label == _ip)
-                    Console.WriteLine(message.Body);
-        }
-    }
-    public class Queue
-    {
-        public Queue()
-        {
-            if (MessageQueue.Exists(@".\private$\MyNewPrivateQueueTest1"))
-            {
-                MessageQueue.Delete(@".\private$\MyNewPrivateQueueTest1");
-            }
-            using (var queue = MessageQueue.Create(".\\private$\\MyNewPrivateQueueTest1"))
-            {
-                queue.Label = "Demo Queue";
-                Console.WriteLine("Очередь создана:");
-                Console.WriteLine("Путь: {0}", queue.Path);
-                Console.WriteLine("Форматное имя: {0}", queue.FormatName);
-                Console.WriteLine("Проверка: {0}", queue.Id);
-                //queue.SetPermissions(".", MessageQueueAccessRights.FullControl);
-                queue.SetPermissions("Все", MessageQueueAccessRights.FullControl);
-            }
-            Console.ReadLine();
-        }
-        public void OpenQueue()
-        {
-            if (MessageQueue.Exists(@".\private$\MyNewPrivateQueueTest1"))
-            {
-                var queue = new MessageQueue(@".\private$\MyNewPrivateQueueTest1");
-            }
-            else
-            {
-                Console.WriteLine("Очередь не существует");
-            }
-        }
-        ~Queue()
-        {
-            // MessageQueue.Delete(".\\private$\\MyNewPrivateQueue");
-            Console.ReadLine();
-        }
-        public void GetQueue()
-        {
-            foreach (var queue in MessageQueue.GetPrivateQueuesByMachine(Environment.MachineName))
-                Console.WriteLine("Очередь: {0}\n", queue.Path);
-
-            Console.ReadLine();
-        }
-        public void Send()
-        {
-            try
-            {
-                if (!MessageQueue.Exists(@".\private$\MyNewPrivateQueueTest1"))
-                {
-                    MessageQueue.Create(@".\private$\MyNewPrivateQueueTest1");
-                }
-
-                var queue = new MessageQueue(@".\private$\MyNewPrivateQueueTest1");
-                queue.Send("Sample Message", "Label");
-                Console.WriteLine("qwe");
-            }
-            catch (MessageQueueException ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
+            SendStatusMessage();
         }
     }
     class Program
@@ -183,13 +193,16 @@ namespace Agent
         static void Main(string[] args)
         {
             Agent agent = new Agent();
-            //Queue queue = new Queue();
-            //queue.GetQueue();
-            //queue.OpenQueue();
-            //queue.Send();
-            /*MessageQueue queue1 = new MessageQueue(@"FormatName:DIRECT=OS:ostan\private$\mynewprivatequeuetest1");
-            queue1.Send("Sample Message", "Label");
-            Console.WriteLine("qwe"); */
+            while(true)
+            {
+                agent.CheckMessage();
+                agent.Solver();
+            }
+            //DateTime start = DateTime.Now;
+            //agent.Solver();
+           // DateTime end = DateTime.Now;
+            //int speed = 1000000 * 1000 / (int)(end.Subtract(start)).TotalMilliseconds;
+            //Console.WriteLine("Скорость: {0} паролей в секунду", speed);
         }
     }
 }

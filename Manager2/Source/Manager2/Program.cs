@@ -171,7 +171,7 @@ namespace Manager2
                 {
                     existAgent = true;
                     oneAgent.SetCore(int.Parse(dataArr[2]));
-                    oneAgent.SetSpeed(int.Parse(dataArr[1]));
+                    oneAgent.SetSpeed(int.Parse(dataArr[1]) * 60);
                     Distribution.NewRangeForAgent(_queue, oneAgent, _packageHash , 1);
                     break;
                 }
@@ -179,10 +179,10 @@ namespace Manager2
 
             if (!existAgent)
             {
-                Agent agent = new Agent(int.Parse(dataArr[2]), int.Parse(dataArr[1]), dataArr[0]);
+                Agent agent = new Agent(int.Parse(dataArr[2]), int.Parse(dataArr[1]) * 60, dataArr[0]);
 
-                Distribution.NewRangeForAgent(_queue, agent, _packageHash, agent.GetCore());
-
+                //Distribution.NewRangeForAgent(_queue, agent, _packageHash, agent.GetCore()); //убрал несколько заданий
+                Distribution.NewRangeForAgent(_queue, agent, _packageHash, 1);
                 _agents.Add(agent);
             }
         }
@@ -204,6 +204,7 @@ namespace Manager2
 
             var queue = new MessageQueue(@".\private$\" + nameQueue);
             queue.SetPermissions("Все", MessageQueueAccessRights.FullControl);
+            queue.Send("Start", "Start");
 
             return queue;
         }
@@ -217,7 +218,7 @@ namespace Manager2
             _packageHash.Add(new HashConvol(inputValue));
             Distribution._usedRange.Add(";" + inputValue + ";" +  "0 " + Distribution._currentPosInRange.ToString());
             ++_countHash;
-            _resolution = true;
+            //_resolution = true;
 
             while (true)
             {
@@ -314,7 +315,8 @@ namespace Manager2
                     if (message.Label == "ManagerStart")
                     {
                         AddOrUpdateAgents(message.Body.ToString());
-                        _queue.ReceiveById(message.Id);
+                        Message mes = _queue.ReceiveById(message.Id);
+                        Console.WriteLine("Удалили Start: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
                     }
 
                     if (message.Label == "ManagerSOLVED")
@@ -328,13 +330,24 @@ namespace Manager2
                         solved = AllSolved();
                     }
 
+                    if (message.Label == "ManagerDELETE")
+                    {
+                        string id = message.Body.ToString();
+
+                        Message mes = _queue.ReceiveById(message.Id);
+                        Console.WriteLine("Удалили запрос: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
+                        mes = _queue.ReceiveById(id);
+                        Console.WriteLine("Удалили задание: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
+                    }
+
                     if (message.Label == "Range")
                     {
                         Distribution.UpdateUsedRange(message.Body.ToString());
-                        _queue.ReceiveById(message.Id);
+                        Message mes = _queue.ReceiveById(message.Id);
+                        Console.WriteLine("Удалили ответ: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
                     }
 
-                    if (Distribution._endAllVariant)
+                    if(Distribution._endAllVariant)
                     {
                         Thread range = new Thread(new ThreadStart(CHUDO));
                         range.Start();
@@ -354,19 +367,20 @@ namespace Manager2
     { 
         static void Main(string[] args)
         {
-            Manager manager = new Manager(Manager.CreateQueue("MyNewPrivateQueueTest"));
+            Manager manager = new Manager(Manager.CreateQueue("testName"));
             MessageQueue queue = manager.GetQueue();
             queue.Formatter = new XmlMessageFormatter(new String[] { "System.String" });
 
-            manager.ReadPackage();
-              
-            while(!manager._resolution)
+            manager._resolution = true;
+            while (manager._resolution)
             {
                 Thread message = new Thread(new ThreadStart(manager.ReadingMessages));
                 message.Start();
                 manager._resolution = false;
                 break;
             }
+
+            manager.ReadPackage();
         }
     }
 }
