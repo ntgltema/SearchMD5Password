@@ -10,7 +10,22 @@ namespace Manager2.Test
     public class UnitTest1
     {
         [SetUp]
-        public void AgentTest()
+        public void NewHashTest()
+        {
+            NewHash hash = new NewHash("hash","deR", 3, 5);
+
+            Assert.AreEqual("hash", hash.GetHash());
+            Assert.AreEqual(3, hash.GetMinLength());
+            Assert.AreEqual(5, hash.GetMaxLength());
+            Assert.AreEqual(69, hash.GetAlpha().Length);
+            Assert.AreEqual(4830, hash.GetStartPos());
+            Assert.AreEqual(4830, hash.GetCurrentPos());
+            Assert.AreEqual(1587031809, hash.GetTotalPsw());
+
+            hash.SetCurrentPos(20000);
+            Assert.AreEqual(24831, hash.GetCurrentPos());
+        }
+        /*public void AgentTest()
         {
             Agent agent = new Agent(2, 57865, "192.168.25.9");
 
@@ -196,7 +211,7 @@ namespace Manager2.Test
             manager.GetQueue().Purge();
         }
 
-        [Test]
+        */[Test]
         public void NewRangeForAgentTest1()
         {
             Manager manager = new Manager(Manager.CreateQueue("myTestQueue"));
@@ -205,27 +220,29 @@ namespace Manager2.Test
             queue.Purge();
             Distribution._usedRange.Clear();
             Agent agent = new Agent(2, 80000, "192.168.25.9");
-            manager.AddHashInPackage(new HashConvol("хеш1"));
-            manager.AddHashInPackage(new HashConvol("хеш2"));
-            manager.AddHashInPackage(new HashConvol("хеш3"));
+            NewHash hash1 = new NewHash("хеш1", "d", 1, 6);
+            NewHash hash2 = new NewHash("хеш2", "d", 2, 5);
+            NewHash hash3 = new NewHash("хеш3", "d", 4, 5);
+            manager.AddHashInPackage(hash1);
+            manager.AddHashInPackage(hash2);
+            manager.AddHashInPackage(hash3);
 
             Distribution.NewRangeForAgent(queue, agent, manager.GetListHash(), agent.GetCore());
             Assert.AreEqual(2, Distribution._usedRange.Count);
-            Assert.AreEqual("192.168.25.9;хеш1 хеш2 хеш3;0 80000", Distribution._usedRange[0]);
-            Assert.AreEqual("192.168.25.9;хеш1 хеш2 хеш3;80001 80000", Distribution._usedRange[1]);
-            Assert.AreEqual(160002, Distribution._currentPosInRange);
+            Assert.AreEqual("192.168.25.9;хеш1;0123456789;0 80000", Distribution._usedRange[0]);
+            Assert.AreEqual("192.168.25.9;хеш2;0123456789;10 80000", Distribution._usedRange[1]);
+            Assert.AreEqual(80001, hash1.GetCurrentPos());
 
             Message[] allMessgaes = queue.GetAllMessages();
             Assert.AreEqual("192.168.25.9", allMessgaes[0].Label);
             Assert.AreEqual("192.168.25.9", allMessgaes[1].Label);
-            Assert.AreEqual("хеш1 хеш2 хеш3+0 80000", allMessgaes[0].Body.ToString());
-            Assert.AreEqual("хеш1 хеш2 хеш3+80001 80000", allMessgaes[1].Body.ToString());
+            Assert.AreEqual("хеш1;0123456789;0 80000", allMessgaes[0].Body.ToString());
+            Assert.AreEqual("хеш2;0123456789;10 80000", allMessgaes[1].Body.ToString());
             queue.Purge();
-            Distribution._currentPosInRange = 0;
             Distribution._endAllVariant = false;
         }
 
-        [Test]
+       /* [Test]
         public void NewRangeForAgentTest2()
         {
             Manager manager = new Manager(Manager.CreateQueue("myTestQueue"));
@@ -258,7 +275,7 @@ namespace Manager2.Test
             Distribution._usedRange.Clear();
         }
 
-        [Test]
+        /*[Test]
         public void DistrOfRemainRangeTest()
         {
             Manager manager = new Manager(Manager.CreateQueue("myTestQueue"));
@@ -331,7 +348,7 @@ namespace Manager2.Test
             Distribution._endAllVariant = false;
             messageRead.Abort();
             Distribution._usedRange.Clear();
-        }
+        }*/
     }
 
     class Program
@@ -340,7 +357,9 @@ namespace Manager2.Test
         {
             UnitTest1 test = new UnitTest1();
 
-            test.AgentTest();
+            test.NewHashTest();
+            test.NewRangeForAgentTest1();
+            /*test.AgentTest();
             test.SolvedConvolTest();
             test.HashConvolTest();
             test.CreateManager();
@@ -351,7 +370,7 @@ namespace Manager2.Test
             test.NewRangeForAgentTest1();
             test.NewRangeForAgentTest2();
             test.DistrOfRemainRangeTest();
-            test.ReadingMessagesTest();
+            test.ReadingMessagesTest();*/
         }
     }
 }

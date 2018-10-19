@@ -7,6 +7,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.ComponentModel;
 using System.IO;
+using System.Security.Cryptography;
+using System.Windows;
 
 namespace Manager2
 {
@@ -78,7 +80,7 @@ namespace Manager2
         }        
     }
 
-    public class HashConvol//+++++++++++++++++++++++++++++++++++++++++++
+   /* public class HashConvol//+++++++++++++++++++++++++++++++++++++++++++
     {
         private string _hashStr;
         private bool _solvedBool;
@@ -103,6 +105,161 @@ namespace Manager2
         {
             _solvedBool = true;
         }       
+    }*/
+
+    public class NewHash
+    {
+        private string _hash;
+        private char[] _alpha;
+        private int _minLength;
+        private int _maxLength;
+        private long _startPos;
+        private long _currentPos;
+        private long _totalPsw;
+        private string _alphaStr;
+        private bool _endAllVariant;
+
+        public NewHash(string hash, string alpha, int minLength, int maxLength)
+        {
+            _hash = hash;
+            _minLength = minLength;
+            _maxLength = maxLength;
+            _alphaStr = InitializeAlpha(alpha);
+            _startPos = InitializeStartPos(minLength);
+            _currentPos = _startPos;
+            _totalPsw = InitializeTotalPsw(maxLength);
+            _endAllVariant = true;
+        }
+
+        public string GetHash()
+        {
+            return _hash;
+        }
+
+        public char[] GetAlpha()
+        {
+            return _alpha;
+        }
+
+        public string GetAlphaStr()
+        {
+            return _alphaStr;
+        }
+
+        public int GetMinLength()
+        {
+            return _minLength;
+        }
+
+        public int GetMaxLength()
+        {
+            return _maxLength;
+        }
+
+        public long GetStartPos()
+        {
+            return _startPos;
+        }
+
+        public long GetCurrentPos()
+        {
+            return _currentPos;
+        }
+
+        public void SetCurrentPos(long delta)
+        {
+            _currentPos += delta + 1;
+        }
+
+        public long GetTotalPsw()
+        {
+            return _totalPsw;
+        }
+
+        public bool GetEndAllVariant()
+        {
+            return _endAllVariant;
+        }
+
+        public void SetEndAllVariant()
+        {
+            _endAllVariant = true;
+        }
+
+        private long InitializeStartPos(int length)
+        {
+            long outStart = 0;
+
+            for (int i = 1; i < length; ++i)
+            {
+                outStart += (long)Math.Pow(_alpha.Length, i);
+            }
+
+            return outStart;
+        }
+
+        private long InitializeTotalPsw(int maxLenght)
+        {
+            long outStart = 0;
+
+            for(int i = 1; i < maxLenght + 1; ++i)
+            {
+                outStart += (long)Math.Pow(_alpha.Length, i);  
+            }
+
+            return outStart;
+        }
+
+        private string InitializeAlpha(string alpha)
+        {
+            List<char> outAlpha = new List<char>();
+
+            foreach (char ch in alpha)
+            {
+                switch (ch)
+                {
+                    case 'd':
+                        {
+                            outAlpha.AddRange(Manager.digit);
+                            break;
+                        }
+                    case 'e':
+                        {
+                            outAlpha.AddRange(Manager.engLow);
+                            break;
+                        }
+                    case 'E':
+                        {
+                            outAlpha.AddRange(Manager.engUpp);
+                            break;
+                        }
+                    case 'r':
+                        {
+                            outAlpha.AddRange(Manager.rusLow);
+                            break;
+                        }
+                    case 'R':
+                        {
+                            outAlpha.AddRange(Manager.rusUpp);
+                            break;
+                        }
+                    default:
+                        {
+                            break;
+                        }
+                }
+            }
+
+            string outAplhaStr = "";
+            int capacityList = outAlpha.Count;
+            for (int i = 0; i < capacityList; ++i)
+            {
+                outAplhaStr += outAlpha[i];
+            }
+            _alpha = outAlpha.ToArray();
+
+            return outAplhaStr;
+        }
     }
 
 
@@ -110,16 +267,21 @@ namespace Manager2
     {
         private List<Agent> _agents; //контейнер агентов
         private MessageQueue _queue;//очередь
-        private List<HashConvol> _packageHash;//контейнер сверток
+        private List<NewHash> _packageHash;//контейнер сверток
         private List<SolvedConvol> _solved;
         public bool _resolution = false;
         public int _countHash = 0;
+        static public char[] digit  = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
+        static public char[] engLow = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z' };
+        static public char[] engUpp = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z' };
+        static public char[] rusLow = { 'а', 'б', 'в', 'г', 'д', 'е', 'ё', 'ж', 'з', 'и', 'й', 'к', 'л', 'м', 'н', 'о', 'п', 'р', 'с', 'т', 'у', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'ъ', 'ь', 'ы', 'э', 'ю', 'я' };
+        static public char[] rusUpp = { 'А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ъ', 'Ь', 'Ы', 'Э', 'Ю', 'Я' };
 
         public Manager(MessageQueue queue)//+++++++++++++++++++++++++++++++++++++++++++
         {
             _agents = new List<Agent>();
             _queue = queue;
-            _packageHash = new List<HashConvol>();
+            _packageHash = new List<NewHash>();
             _solved = new List<SolvedConvol>();
         }
 
@@ -128,7 +290,7 @@ namespace Manager2
             return _agents;
         }
 
-        public List<HashConvol> GetListHash()//+++++++++++++++++++++++++++++++++++++++++++
+        public List<NewHash> GetListHash()//+++++++++++++++++++++++++++++++++++++++++++
         {
             return _packageHash;
         }
@@ -148,7 +310,7 @@ namespace Manager2
             _agents = agent;
         }
 
-        public void AddHashInPackage(HashConvol hash)//+++++++++++++++++++++++++++++++++++++++++++
+        public void AddHashInPackage(NewHash hash)//+++++++++++++++++++++++++++++++++++++++++++
         {
             _packageHash.Add(hash);
             ++_countHash;
@@ -209,16 +371,92 @@ namespace Manager2
             return queue;
         }
 
+        private void InitialazeHash()
+        {
+            Console.WriteLine("Вы сможете нам помочь быстрее подобрать пароль, если укажите известные вам данные о пароле.\n" +
+               "Если информация о пароле вам не известна, то введите цифру 1 - \"по умолчанию\", это будет означать, что пароль будет подбираться из всех возможных вариантов\n\n" +
+               "Если вы все-таки обладаете информацией о пароле, то введите цифру 2 и заполните колонки:");
+
+            string minLength = "";
+            string maxLength = "";
+            string preg = "";
+            string flag2 = "";
+            while (flag2 != "1" || flag2 != "2")
+            {
+                flag2 = Console.ReadLine();
+                switch (flag2)
+                {
+                    case "1":
+                        {
+                            minLength = "1";
+                            maxLength = "6";
+                            preg = "deErR";
+                            break;
+                        }
+                    case "2":
+                        {
+                            Console.Write("Введите минимальную длину пароля(число от 1 до 5): ");
+                            minLength = Console.ReadLine();
+
+                            Console.Write("Введите максимальную длину пароля(minLength < число < 6): ");
+                            maxLength = Console.ReadLine();
+
+                            Console.Write("Введите из каких символов составлен пароль: ");
+                            preg = Console.ReadLine();
+
+                            break;
+                        }
+                    default:
+                        {
+
+                            break;
+                        }
+                }
+            }
+        }
+
+        public void InformationAboutHash(string inputValue)
+        {
+            Console.WriteLine("Информация не известна - 1, Добавить информацию о пароле - 2");
+            int minLength = 0;
+            int maxLength = 0;
+            string preg = "";
+            string flag2 = Console.ReadLine();
+            switch (flag2)
+            {
+                case "1":
+                    {
+                        _packageHash.Add(new NewHash(inputValue, "deErR", 1, 6));
+                        break;
+                    }
+                case "2":
+                    {
+                        Console.Write("minLength = ");
+                        minLength = int.Parse(Console.ReadLine());
+
+                        Console.Write("maxLength = ");
+                        minLength = int.Parse(Console.ReadLine());
+
+                        Console.Write("preg = ");
+                        preg = Console.ReadLine();
+                        _packageHash.Add(new NewHash(inputValue, preg, minLength, maxLength));
+                        break;
+                    }
+            }
+        }
         //считывание сверток
         public void ReadPackage()
         {
+            Console.WriteLine("Вы сможете нам помочь быстрее подобрать пароль, если укажите известные вам данные о пароле.\n" +
+                "Если информация о пароле вам не известна, то введите цифру 1 - \"по умолчанию\", это будет означать, что пароль будет подбираться из всех возможных вариантов\n\n" + 
+                "Если вы все-таки обладаете информацией о пароле, то введите цифру 2 и заполните колонки:\n 1) минимальная длина пароля\n 2) максимальная длина пароля\n" + 
+                " 3) маска, задающая из каких символов состаит пароль:\n\t*\td - цифры [0,9]\n\t*\te - строчные буквы английского алфавита" +
+                "\n\t*\tE - просписные буквы английского алфавита\n\t*\tr - строчные буквы русского алфавита\n\t*\tR - просписные буквы русского алфавита\n\n\n");
+                              
             Console.WriteLine("Задайте свертку");
-            string inputValue = "";
-            inputValue = Console.ReadLine();
-            _packageHash.Add(new HashConvol(inputValue));
-            Distribution._usedRange.Add(";" + inputValue + ";" +  "0 " + Distribution._currentPosInRange.ToString());
+            string inputValue = Console.ReadLine();
+            InformationAboutHash(inputValue);
             ++_countHash;
-            //_resolution = true;
 
             while (true)
             {
@@ -229,10 +467,8 @@ namespace Manager2
                     case "1":
                         {
                             Console.WriteLine("Задайте новую свертку:");
-                            inputValue = Console.ReadLine();
-                            _packageHash.Add(new HashConvol(inputValue));
+                            InformationAboutHash(inputValue);
                             ++_countHash;
-                            Distribution._usedRange.Add(";" + inputValue + ";" + "0 " + Distribution._currentPosInRange.ToString());
                             break;
                         }
                     case "2":
@@ -257,9 +493,9 @@ namespace Manager2
         //обновление контейнера с хешами(удаление хешей, к которым найдено решение или пользователь сам хочет удалить данный хеш из обработки)
         public void UpdateHashPackage(string hash)//+++++++++++++++++++++++++++++++++++++++++++
         {
-            foreach(HashConvol oneHash in _packageHash)
+            foreach(NewHash oneHash in _packageHash)
             {
-                if (oneHash.GetHashStr() == hash)
+                if (oneHash.GetHash() == hash)
                 {
                     _packageHash.Remove(oneHash);
                     break;
@@ -302,6 +538,16 @@ namespace Manager2
             }
 
             return solved;
+        }
+
+        public bool AllEndAllVariant()//+++++++++++++++++++++++++++++++++++++++++++
+        {
+            bool end = true;
+
+            foreach (NewHash hash in _packageHash)
+                end = end && hash.GetEndAllVariant();
+           
+            return end;
         }
 
         public void ReadingMessages()//+++++++++++++++++++++++++++++++++++++++++++
@@ -347,7 +593,7 @@ namespace Manager2
                         Console.WriteLine("Удалили ответ: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
                     }
 
-                    if(Distribution._endAllVariant)
+                    if(AllEndAllVariant())
                     {
                         Thread range = new Thread(new ThreadStart(CHUDO));
                         range.Start();

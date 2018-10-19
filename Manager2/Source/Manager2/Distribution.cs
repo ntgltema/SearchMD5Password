@@ -11,8 +11,8 @@ namespace Manager2
     public class Distribution
     {
         static public List<string> _usedRange = new List<string>();
-        static public long _totalCountPsw = 4432676798592;
-        static public long _currentPosInRange = 0;
+       // static public long _totalCountPsw = 4432676798592;
+       // static public long _currentPosInRange = 0;
         static public bool _endAllVariant = false;
         static private int _countMessage = 0;
         static private List<Agent> _agents = new List<Agent>();
@@ -29,35 +29,28 @@ namespace Manager2
             });            
         }
 
-        public static void NewRangeForAgent(MessageQueue queue, Agent agent, List<HashConvol> hashPackage, int countTask)//+++++++++++++++++++++++++++++++++++++++++++
+        public static void NewRangeForAgent(MessageQueue queue, Agent agent, List<NewHash> hashPackage, int countTask)//+++++++++++++++++++++++++++++++++++++++++++
         {
-            string allHash = "";
-            for(int i = 0; i < hashPackage.Count(); ++i)
-            {
-                if (i != hashPackage.Count() - 1)
-                    allHash += hashPackage[i].GetHashStr() + " ";
-                else
-                    allHash += hashPackage[i].GetHashStr();
-            }
-
             for (int i = 0; i < countTask; ++i)
             {
-                long startRange = _currentPosInRange;
+                NewHash hash = hashPackage[_countMessage % hashPackage.Count];
+                long startRange = hash.GetCurrentPos();
                 long countPswInRange = agent.GetSpeed();
 
-                countPswInRange = (startRange + countPswInRange) < _totalCountPsw ? countPswInRange : _totalCountPsw - startRange + 1;
+                countPswInRange = (startRange + countPswInRange) < hash.GetTotalPsw() ? countPswInRange : hash.GetTotalPsw() - startRange + 1;
 
-                if (startRange < _totalCountPsw)
+                if (startRange < hash.GetTotalPsw())
                 {
-                    queue.Send(allHash + ";" + startRange + " " + countPswInRange, agent.GetIp());
-                    _usedRange.Add(agent.GetIp() + ";" + allHash + ";" + startRange + " " + countPswInRange);
-                    _currentPosInRange += countPswInRange + 1;
+                    queue.Send(hash.GetHash() + ";" + hash.GetAlphaStr() + ";" + startRange + " " + countPswInRange, agent.GetIp());
+                    _usedRange.Add(agent.GetIp() + ";" + hash.GetHash() + ";" + hash.GetAlphaStr() + ";" + startRange + " " + countPswInRange);
+                    hash.SetCurrentPos(countPswInRange);
+                    ++_countMessage;
                 }
 
-                if (_currentPosInRange >= _totalCountPsw)
+                if (hash.GetCurrentPos() >= hash.GetTotalPsw())
                 {
-                    _endAllVariant = true;
-                }                  
+                    hash.SetEndAllVariant();
+                }                
             }
         }
 
@@ -86,22 +79,22 @@ namespace Manager2
             foreach (string range in _usedRange)
             {
                 string[] dataArr = range.Split(';');
-                string rangeStr = dataArr[2];
+                string rangeStr = dataArr[3];
 
                 string[] dataArrRange = rangeStr.Split(' ');
-                int startRange = int.Parse(dataArrRange[0]);
-                int totalPswInRange = int.Parse(dataArrRange[1]);
+                long startRange = long.Parse(dataArrRange[0]);
+                long totalPswInRange = long.Parse(dataArrRange[1]);
 
-                int countPswInRange = 0;
-                int indexCurrentAgent = _countMessage % agents.Count();
-
+                long countPswInRange = 0;
+                int indexCurrentAgent = 0;
+               
                 while (startRange < totalPswInRange + startRange)
                 {
                     indexCurrentAgent = _countMessage % agents.Count();       
                     countPswInRange = agents[indexCurrentAgent].GetSpeed() > totalPswInRange ? totalPswInRange : agents[indexCurrentAgent].GetSpeed();
 
-                    queue.Send(dataArr[1] + ";" + startRange + " " + countPswInRange, agents[indexCurrentAgent].GetIp());
-                    tempUsedRange.Add(agents[indexCurrentAgent].GetIp() + ";" + dataArr[1] + ";" + startRange + " " + countPswInRange);
+                    queue.Send(dataArr[1]+";" + dataArr[2] + ";" + startRange + " " + countPswInRange, agents[indexCurrentAgent].GetIp());
+                    tempUsedRange.Add(agents[indexCurrentAgent].GetIp() + ";" + dataArr[1] + ";" + dataArr[2] + ";" + startRange + " " + countPswInRange);
 
                     totalPswInRange -= countPswInRange;
                     startRange += countPswInRange + 1;
