@@ -13,25 +13,23 @@ namespace Agent
     public struct Task
     {
         public List<string> _hash;
-        public long startPos;
-        public long countPasswords;
+        public long _startPos;
+        public long _countPasswords;
+        public string _alphabet;
+        public string _message;
+        public bool _inWork;
     }
 
     public class Agent
     {
+        public List<Task> tasks;
         private string _id = null;
-        public Task task;
+        //public Task task;
         private string _ip;
         public MessageQueue _queue;
         private int _core;
         private int _speed;
-        private string _message;
 
-        char[] alphabet = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-                            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-                            'а', 'б', 'в', 'г', 'д', 'е', 'ё', 'ж', 'з', 'и', 'й', 'к', 'л', 'м', 'н', 'о', 'п', 'р', 'с', 'т', 'у', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'ъ', 'ь', 'ы', 'э', 'ю', 'я',
-                            'А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ъ', 'Ь', 'Ы', 'Э', 'Ю', 'Я',
-                            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
         private void SetIp()
         {
             string Host = System.Net.Dns.GetHostName();
@@ -39,7 +37,7 @@ namespace Agent
         }
         private void SetCoreCount()
         {
-            _core = Environment.ProcessorCount / 2;            
+            _core = Environment.ProcessorCount;
         }
 
         private void SendStatusMessage()
@@ -49,63 +47,99 @@ namespace Agent
 
         public void SetPassPerSeconds()
         {
-            task.startPos = (long)Math.Pow(128, 6) / 2;
-            task.countPasswords = 1000000;
-            task._hash = new List<string>() { "aaa" };
-            DateTime start = DateTime.Now;
-            Solver();
-            DateTime end = DateTime.Now;
-            _speed = (int)task.countPasswords * 1000 / (int)(end.Subtract(start)).TotalMilliseconds;
+            //for (int i = 0; i < _core; i++)
+            //{
+            //    Task task = new Task();
+            //    task._startPos = i * 250000;
+            //    task._countPasswords = 250000;
+            //    task._hash = new List<string>() { "aaa" };
+            //    tasks.Add(task);
+            //}
+            //DateTime start = DateTime.Now;
+            //Solver();
+            //DateTime end = DateTime.Now;
+            //_speed = (int)250000 * 1000 * _core / (int)(end.Subtract(start)).TotalMilliseconds;
+            _speed = 100000;
         }
-        public void SendGoodMessage(string password, string hash)
+
+        public void SendGoodMessage(string myPassword, string myHash)
         {
-            _queue.Send(hash + " " + password, "ManagerSOLVED");
-            task._hash.Remove(hash);
+            _queue.Send(myHash + " " + myPassword, "ManagerSOLVED");
         }
+
+        public void DelHash(string myPassword, string myHash)
+        {
+            foreach(Task task in tasks)
+            {
+                foreach (string hash in task._hash)
+                {
+                    if (myHash == hash)
+                        task._hash.Remove(myHash);
+                }
+                if (task._hash.Count == 0)
+                {
+                    _queue.Send(_ip + ";" + task._message, "Range");
+                    tasks.Remove(task);
+                }
+            }    
+    }
 
         public void Solver()
         {
-            if(task._hash.Count() > 0)
+            if (tasks.Count < _core)
             {
-                List<Thread> therds = new List<Thread>();
-                for (int i = 0; i < _core * 2; i++)
+                if(CheckMessage())
                 {
-                    Thread thread = new Thread(this.func);
-                    therds.Add(thread);
-                    string num = (task.startPos + i * task.countPasswords / (_core * 2)) + " " + (task.countPasswords / (_core * 2));
-                    thread.Start(num);
-                }
-                foreach (Thread t in therds)
-                {
-                    t.Join();
-                }
-                task._hash.Clear();
-                if(0 < _speed)
-                {
-                    _queue.Send(_ip + ";" + _message, "Range");
-                    SendStatusMessage();
+                    Thread thread = new Thread(this.CheckPasswords);
+                    thread.Start();
                 }
             }
+            //if(task._hash.Count() > 0)
+            //{
+            //    List<Thread> therds = new List<Thread>();
+            //    for (int i = 0; i < _core * 2; i++)
+            //    {
+            //        Thread thread = new Thread(this.func);
+            //        therds.Add(thread);
+            //        string num = (task.startPos + i * task.countPasswords / (_core * 2)) + " " + (task.countPasswords / (_core * 2));
+            //        thread.Start(num);
+            //    }
+            //    foreach (Thread t in therds)
+            //    {
+            //        t.Join();
+            //    }
+            //    task._hash.Clear();
+            //    if(0 < _speed)
+            //    {
+            //        _queue.Send(_ip + ";" + _message, "Range");
+            //        SendStatusMessage();
+            //    }
+            //}
         }
 
-        void func(object num)//Функция потока, передаем параметр
-        {
-            string[] param = num.ToString().Split(' ');
-            CheckPasswords(Convert.ToInt64(param[0]), Convert.ToInt64(param[1]));
-        }
+        //void func(object num)//Функция потока, передаем параметр
+        //{
+        //    Task task = (Task)num;
+        //    CheckPasswords(task);
+        //}
 
-        public void CheckPasswords(long startPos, long countPasswords)
+        public void CheckPasswords()
         {
-           long countAllPasswords = 4432676798592;
-            if (countAllPasswords < startPos + countPasswords)
-                countPasswords = countAllPasswords - startPos;
-            for(long i = 0; i <= countPasswords && 0 < task._hash.Count(); i++)
+            Task task = tasks[0];
+            foreach(Task FreeTask in tasks)
             {
-                long numberOfPassword = startPos + i;
+                if (!FreeTask._inWork)
+                    task = FreeTask;
+            }
+
+            for(long i = 0; i <= task._countPasswords && 0 < task._hash.Count(); i++)
+            {
+                int countOfChar = task._alphabet.Length;
+                long numberOfPassword = task._startPos + i;
                 string password = "";
                 do
                 {
-                    password = alphabet[numberOfPassword % 128] + password;
+                    password = task._alphabet[(int)(numberOfPassword % 128)] + password;
                     numberOfPassword = numberOfPassword / 128;
                 }
                 while (numberOfPassword != 0);
@@ -114,10 +148,23 @@ namespace Agent
                     if (newHash == task._hash[j])
                     {
                         Console.WriteLine("Подобрали пароль к свертке: {0} : {1}", task._hash[j], password);
+                        task._hash.Remove(newHash);
                         SendGoodMessage(password, task._hash[j]);
+                        DelHash(password, task._hash[j]);
                         j--;
                     }
             }
+            EndOfTask(task._message);
+        }
+
+        private void EndOfTask(string message)
+        {
+            foreach(Task task in tasks)
+                if(task._message == message)
+                {
+                    _queue.Send(_ip + ";" + task._message, "Range");
+                    tasks.Remove(task);
+                }
         }
 
         public string CalculateMD5Hash(string password)
@@ -134,7 +181,7 @@ namespace Agent
 
             return sb.ToString();
         }
-        public void CheckMessage()
+        public bool CheckMessage()
         {
             foreach (Message message in _queue)
             {
@@ -143,27 +190,28 @@ namespace Agent
                     Console.WriteLine("Получили сообщение");
                     Console.WriteLine(message.Body.ToString());
                     SetParam(message.Body.ToString());
-                    _id = message.Id;
+                    _queue.Send(message.Id, "ManagerDELETE");
+                    return true;
                 }
             }
-            if(_id != null)
-            {
-                _queue.Send(_id, "ManagerDELETE");
-                _id = null;
-            }
+            return false;
         }
 
         private void SetParam(string message)
         {
-            _message = message;
+            Task task = new Task();
+            task._message = message;
             string[] param = message.ToString().Split(';');
             string[] hash = param[0].ToString().Split(' ');
-            string[] count = param[1].ToString().Split(' ');
-            task.startPos = Convert.ToInt64(count[0]);
-            task.countPasswords = Convert.ToInt64(count[1]);
+            string[] count = param[2].ToString().Split(' ');
+            task._alphabet = param[1];
+            task._startPos = Convert.ToInt64(count[0]);
+            task._countPasswords = Convert.ToInt64(count[1]);
             task._hash.Clear();
+            task._inWork = false;
             foreach (string data in hash)
                 task._hash.Add(data);
+            tasks.Add(task);
         }
 
         public Agent()
@@ -175,12 +223,12 @@ namespace Agent
                 if(message.Label == "Start")
                 {
                     Console.WriteLine("Нашли стартовое сообщение");
-                    //_id = message.Id;
                 }
             }
             SetCoreCount();
             SetIp();
             SetPassPerSeconds();
+            tasks = new List<Task>();
             Console.WriteLine("Подключились к очереди: {0}", path);
             Console.WriteLine("Скорость: {0} паролей в секунду", _speed);
             Console.WriteLine("Доступно ядер: {0}", _core);
@@ -195,7 +243,6 @@ namespace Agent
             Agent agent = new Agent();
             while(true)
             {
-                agent.CheckMessage();
                 agent.Solver();
             }
             //DateTime start = DateTime.Now;
