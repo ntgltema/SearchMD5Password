@@ -10,11 +10,9 @@ namespace Manager2
 {
     public class Distribution
     {
-        static public List<string> _usedRange = new List<string>();
-       // static public long _totalCountPsw = 4432676798592;
-       // static public long _currentPosInRange = 0;
-        static public bool _endAllVariant = false;
-        static private int _countMessage = 0;
+        static public List<string> _usedRange = new List<string>();      
+        static public bool _endAllVariant = true;
+        static public int _countMessage = 0;
         static private List<Agent> _agents = new List<Agent>();
 
         public static void UpdateUsedRange(string removeHash)//+++++++++++++++++++++++++++++++++++++++++++
@@ -31,26 +29,35 @@ namespace Manager2
 
         public static void NewRangeForAgent(MessageQueue queue, Agent agent, List<NewHash> hashPackage, int countTask)//+++++++++++++++++++++++++++++++++++++++++++
         {
-            for (int i = 0; i < countTask; ++i)
+            if (hashPackage.Count > 0)
             {
-                NewHash hash = hashPackage[_countMessage % hashPackage.Count];
-                long startRange = hash.GetCurrentPos();
-                long countPswInRange = agent.GetSpeed();
-
-                countPswInRange = (startRange + countPswInRange) < hash.GetTotalPsw() ? countPswInRange : hash.GetTotalPsw() - startRange + 1;
-
-                if (startRange < hash.GetTotalPsw())
+                for (int i = 0; i < countTask; ++i)
                 {
-                    queue.Send(hash.GetHash() + ";" + hash.GetAlphaStr() + ";" + startRange + " " + countPswInRange, agent.GetIp());
-                    _usedRange.Add(agent.GetIp() + ";" + hash.GetHash() + ";" + hash.GetAlphaStr() + ";" + startRange + " " + countPswInRange);
-                    hash.SetCurrentPos(countPswInRange);
-                    ++_countMessage;
+                    NewHash hash = hashPackage[_countMessage % hashPackage.Count];
+                    long startRange = hash.GetCurrentPos();
+                    long countPswInRange = agent.GetSpeed();
+
+                    countPswInRange = (startRange + countPswInRange) < hash.GetTotalPsw() ? countPswInRange : hash.GetTotalPsw() - startRange + 1;
+
+                    if (startRange < hash.GetTotalPsw())
+                    {
+                        queue.Send(hash.GetHash() + ";" + hash.GetAlphaStr() + ";" + startRange + " " + countPswInRange, agent.GetIp());
+                        _usedRange.Add(agent.GetIp() + ";" + hash.GetHash() + ";" + hash.GetAlphaStr() + ";" + startRange + " " + countPswInRange);
+                        hash.SetCurrentPos(countPswInRange);
+                        ++_countMessage;
+                        Console.WriteLine("Выдали задание");
+                    }
+
+                    if (startRange >= hash.GetTotalPsw())
+                    {
+                        Console.WriteLine("Не выдали задание по причине конца заданий");
+                    }
+
+                    if (hash.GetCurrentPos() >= hash.GetTotalPsw())
+                    {
+                        hash.SetEndAllVariant();
+                    }
                 }
-
-                if (hash.GetCurrentPos() >= hash.GetTotalPsw())
-                {
-                    hash.SetEndAllVariant();
-                }                
             }
         }
 
@@ -97,7 +104,7 @@ namespace Manager2
                     tempUsedRange.Add(agents[indexCurrentAgent].GetIp() + ";" + dataArr[1] + ";" + dataArr[2] + ";" + startRange + " " + countPswInRange);
 
                     totalPswInRange -= countPswInRange;
-                    startRange += countPswInRange + 1;
+                    startRange += countPswInRange;
                     ++_countMessage;
                 }
             }

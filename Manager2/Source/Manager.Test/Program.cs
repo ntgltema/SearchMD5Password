@@ -17,7 +17,7 @@ namespace Manager2.Test
             Assert.AreEqual("hash", hash.GetHash());
             Assert.AreEqual(3, hash.GetMinLength());
             Assert.AreEqual(5, hash.GetMaxLength());
-            Assert.AreEqual(69, hash.GetAlpha().Length);
+            Assert.AreEqual("0123456789abcdefghijklmnopqrstuvwxyzАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЬЫЭЮЯ", hash.GetAlphaStr());
             Assert.AreEqual(4830, hash.GetStartPos());
             Assert.AreEqual(4830, hash.GetCurrentPos());
             Assert.AreEqual(1587031809, hash.GetTotalPsw());
@@ -25,7 +25,8 @@ namespace Manager2.Test
             hash.SetCurrentPos(20000);
             Assert.AreEqual(24831, hash.GetCurrentPos());
         }
-        /*public void AgentTest()
+
+        public void AgentTest()
         {
             Agent agent = new Agent(2, 57865, "192.168.25.9");
 
@@ -51,18 +52,6 @@ namespace Manager2.Test
         }
 
         [Test]
-        public void HashConvolTest()
-        {
-            HashConvol hashConvol = new HashConvol("020MCSMKMVPASQSACKACAC");
-
-            Assert.AreEqual("020MCSMKMVPASQSACKACAC", hashConvol.GetHashStr());
-            Assert.AreEqual(false, hashConvol.GetSolved());
-
-            hashConvol.SetSolved();
-            Assert.AreEqual(true, hashConvol.GetSolved());
-        }
-
-        [Test]
         public void CreateManager()
         {
             Manager manager = new Manager(Manager.CreateQueue("myTestQueue"));
@@ -83,12 +72,15 @@ namespace Manager2.Test
             Manager manager = new Manager(Manager.CreateQueue("myTestQueue"));
             MessageQueue queueTest = manager.GetQueue();
 
+            NewHash hash1 = new NewHash("hash1", "d", 1, 5);
+            manager.AddHashInPackage(hash1);
+
             manager.AddOrUpdateAgents("192.168.25.9 56123 2");
 
             Assert.AreEqual(1, manager.GetList().Count);
             Agent agent1 = manager.GetList()[0];
             Assert.AreEqual("192.168.25.9", agent1.GetIp());
-            Assert.AreEqual(56123, agent1.GetSpeed());
+            Assert.AreEqual(3367380, agent1.GetSpeed());
             Assert.AreEqual(2, agent1.GetCore());
 
             manager.AddOrUpdateAgents("127.0.0.3 86489 4");
@@ -96,26 +88,27 @@ namespace Manager2.Test
             Assert.AreEqual(2, manager.GetList().Count);
             Agent agent2 = manager.GetList()[1];
             Assert.AreEqual("127.0.0.3", agent2.GetIp());
-            Assert.AreEqual(86489, agent2.GetSpeed());
+            Assert.AreEqual(5189340, agent2.GetSpeed());
             Assert.AreEqual(4, agent2.GetCore());
 
             manager.AddOrUpdateAgents("192.168.25.9 45685 8");
 
             Assert.AreEqual(2, manager.GetList().Count);
             agent1 = manager.GetList()[0];
-            Assert.AreEqual("192.168.25.9", agent2.GetIp());
-            Assert.AreEqual(45685, agent2.GetSpeed());
-            Assert.AreEqual(8, agent2.GetCore());
+            Assert.AreEqual("192.168.25.9", agent1.GetIp());
+            Assert.AreEqual(2741100, agent1.GetSpeed());
+            Assert.AreEqual(8, agent1.GetCore());
             queueTest.Purge();
+            Distribution._usedRange.Clear();
         }
 
         [Test]
         public void UpdateHashPackageTest()
         {
             Manager manager = new Manager(Manager.CreateQueue("myTestQueue"));
-            HashConvol hash1 = new HashConvol("hash1");
-            HashConvol hash2 = new HashConvol("hash2");
-            HashConvol hash3 = new HashConvol("hash3");
+            NewHash hash1 = new NewHash("hash1", "d", 2, 3);
+            NewHash hash2 = new NewHash("hash2", "er", 3,4);
+            NewHash hash3 = new NewHash("hash3", "R", 2, 5);
 
             manager.AddHashInPackage(hash1);
             manager.AddHashInPackage(hash2);
@@ -124,10 +117,10 @@ namespace Manager2.Test
 
             manager.UpdateHashPackage("hash2");
             Assert.AreEqual(2, manager.GetListHash().Count);
-            List<HashConvol> hashPackage = manager.GetListHash(); 
-            foreach(HashConvol hash in hashPackage)
+            List<NewHash> hashPackage = manager.GetListHash(); 
+            foreach(NewHash hash in hashPackage)
             {
-                Assert.AreNotEqual("hash2", hash.GetHashStr());
+                Assert.AreNotEqual("hash2", hash.GetHash());
             }
             manager.GetQueue().Purge();
         }
@@ -149,21 +142,21 @@ namespace Manager2.Test
 
             manager.UpdateSolvedPackage("hash2");
             Assert.AreEqual(2, manager.GetListSolved().Count);
-            List<HashConvol> hashPackage = manager.GetListHash();
-            foreach (HashConvol hash in hashPackage)
+            List<NewHash> hashPackage = manager.GetListHash();
+            foreach (NewHash hash in hashPackage)
             {
-                Assert.AreNotEqual("hash2", hash.GetHashStr());
+                Assert.AreNotEqual("hash2", hash.GetHash());
             }
             manager.GetQueue().Purge();
         }
 
         public void UpdateUsedPackageTest()
         {
-            Distribution._usedRange.Add("ip;хеш1;range1");
-            Distribution._usedRange.Add("ip;хеш2;range1");
-            Distribution._usedRange.Add("ip;хеш3;range1");
-            Distribution._usedRange.Add("ip;хеш2;range1");
-            Distribution._usedRange.Add("ip;хеш4;range1");
+            Distribution._usedRange.Add("ip;хеш1;alpha1;range1");
+            Distribution._usedRange.Add("ip;хеш2;alpha2;range1");
+            Distribution._usedRange.Add("ip;хеш3;alpha3;range1");
+            Distribution._usedRange.Add("ip;хеш2;alpha4;range1");
+            Distribution._usedRange.Add("ip;хеш4;alpha5;range1");
             Assert.AreEqual(5, Distribution._usedRange.Count);
 
             Distribution.UpdateUsedRange("хеш2");
@@ -176,7 +169,7 @@ namespace Manager2.Test
                 Assert.AreNotEqual("хеш2", dataArrMessage[1]);
             }
 
-            Distribution.UpdateUsedRange("ip;хеш4;range1");
+            Distribution.UpdateUsedRange("ip;хеш4;alpha5;range1");
             Assert.AreEqual(2, Distribution._usedRange.Count);
 
             foreach (string message in Distribution._usedRange)
@@ -191,9 +184,9 @@ namespace Manager2.Test
         public void AllSolvedTest()
         {
             Manager manager = new Manager(Manager.CreateQueue("myTestQueue"));
-            HashConvol hash1 = new HashConvol("hash1");
-            HashConvol hash2 = new HashConvol("hash2");
-            HashConvol hash3 = new HashConvol("hash3");
+            NewHash hash1 = new NewHash("hash1", "der", 1, 2);
+            NewHash hash2 = new NewHash("hash2", "r", 2, 3);
+            NewHash hash3 = new NewHash("hash3", "R", 1, 4);
             SolvedConvol solved1 = new SolvedConvol("hash1", "solved1");
             SolvedConvol solved2 = new SolvedConvol("hash2", "solved2");
             SolvedConvol solved3 = new SolvedConvol("hash3", "solved3");
@@ -211,7 +204,7 @@ namespace Manager2.Test
             manager.GetQueue().Purge();
         }
 
-        */[Test]
+        [Test]
         public void NewRangeForAgentTest1()
         {
             Manager manager = new Manager(Manager.CreateQueue("myTestQueue"));
@@ -242,7 +235,7 @@ namespace Manager2.Test
             Distribution._endAllVariant = false;
         }
 
-       /* [Test]
+        [Test]
         public void NewRangeForAgentTest2()
         {
             Manager manager = new Manager(Manager.CreateQueue("myTestQueue"));
@@ -250,27 +243,23 @@ namespace Manager2.Test
             MessageQueue queue = manager.GetQueue();
             queue.Purge();
             Distribution._usedRange.Clear();
-            Distribution._totalCountPsw = 100000;
+            Distribution._countMessage = 0;
             Agent agent = new Agent(2, 80000, "192.168.25.9");
-            manager.AddHashInPackage(new HashConvol("хеш1"));
-            manager.AddHashInPackage(new HashConvol("хеш2"));
-            manager.AddHashInPackage(new HashConvol("хеш3"));
+            manager.AddHashInPackage(new NewHash("хеш1", "d", 1, 3));
+            manager.AddHashInPackage(new NewHash("хеш2", "e", 2, 3));
+            manager.AddHashInPackage(new NewHash("хеш3", "R", 4, 6));
 
             Distribution.NewRangeForAgent(queue, agent, manager.GetListHash(), agent.GetCore());
             Assert.AreEqual(2, Distribution._usedRange.Count);
-            Assert.AreEqual("192.168.25.9;хеш1 хеш2 хеш3;0 80000", Distribution._usedRange[0]);
-            Assert.AreEqual("192.168.25.9;хеш1 хеш2 хеш3;80001 20000", Distribution._usedRange[1]);
-            Assert.AreEqual(100002, Distribution._currentPosInRange);
+            Assert.AreEqual("192.168.25.9;хеш1;0123456789;0 1111", Distribution._usedRange[0]);
+            Assert.AreEqual("192.168.25.9;хеш2;abcdefghijklmnopqrstuvwxyz;26 18253", Distribution._usedRange[1]);
 
             Message[] allMessgaes = queue.GetAllMessages();
             Assert.AreEqual("192.168.25.9", allMessgaes[0].Label);
             Assert.AreEqual("192.168.25.9", allMessgaes[1].Label);
-            Assert.AreEqual("хеш1 хеш2 хеш3+0 80000", allMessgaes[0].Body.ToString());
-            Assert.AreEqual("хеш1 хеш2 хеш3+80001 20000", allMessgaes[1].Body.ToString());
-            Assert.AreEqual(true, Distribution._endAllVariant);
+            Assert.AreEqual("хеш1;0123456789;0 1111", allMessgaes[0].Body.ToString());
+            Assert.AreEqual("хеш2;abcdefghijklmnopqrstuvwxyz;26 18253", allMessgaes[1].Body.ToString());
             queue.Purge();
-            Distribution._totalCountPsw = 4432676798592;
-            Distribution._currentPosInRange = 0;
             Distribution._endAllVariant = false;
             Distribution._usedRange.Clear();
         }
@@ -283,8 +272,7 @@ namespace Manager2.Test
             MessageQueue queue = manager.GetQueue();
             queue.Purge();
             Distribution._usedRange.Clear();
-            Distribution._totalCountPsw = 230000;
-
+        
             Agent agent1 = new Agent(2, 26000, "192.168.25.9");
             Agent agent2 = new Agent(3, 12345, "137.168.25.9");
             Agent agent3 = new Agent(4, 56783, "145.168.25.9");
@@ -304,8 +292,6 @@ namespace Manager2.Test
             Assert.AreEqual("192.168.25.9;хеш3;80301 9700", Distribution._usedRange[3]);
 
             queue.Purge();
-            Distribution._totalCountPsw = 4432676798592;
-            Distribution._currentPosInRange = 0;
             Distribution._endAllVariant = false;
             Distribution._usedRange.Clear();
         }
@@ -359,17 +345,17 @@ namespace Manager2.Test
 
             test.NewHashTest();
             test.NewRangeForAgentTest1();
-            /*test.AgentTest();
+            test.AgentTest();
             test.SolvedConvolTest();
-            test.HashConvolTest();
             test.CreateManager();
+            test.AddNewAgentAndUpadateTest();
             test.UpdateHashPackageTest();
             test.UpdateSolvedPackageTest();
             test.AllSolvedTest();
             test.UpdateUsedPackageTest();
             test.NewRangeForAgentTest1();
             test.NewRangeForAgentTest2();
-            test.DistrOfRemainRangeTest();
+           /* test.DistrOfRemainRangeTest();
             test.ReadingMessagesTest();*/
         }
     }
