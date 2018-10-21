@@ -341,6 +341,26 @@ namespace Manager2
         
         public void ReadPackage(Thread messageRead)
         {
+            Console.WriteLine("Для добавления свертки воспользуйтесь командой: add [-min *] [-max *] [-preg #]\n" +
+                "min - минимальная длина пароля\n" +
+                "max - максимальная длина пароля\n" +
+                "preg - алфавит, из которго состоит пароль\n" + 
+                "\t1) [] означает, что параметр не обязятелен для ввода\n" + 
+                "\t2) * - число от 1 до 6\n" + 
+                "\t3) min <= max\n" + 
+                "\t4) # - подстрока из подстановок последовательности deErR\n" + 
+                "\t\td - цифры от 0 до 9\n" +
+                "\t\te - строчные буквы английского алфавита\n" +
+                "\t\tE - прописные буквы английского алфавита\n" +
+                "\t\tr - строчные буквы русского алфавита\n" +
+                "\t\tR - прописные буквы русского алфавита\n\n" + 
+                "\t5) По умолчанию параметры принимают значения:\n" +
+                "\t\tmin = 1\n" +
+                "\t\tmax = 6\n" +
+                "\t\tpreg = deErR\n\n" + 
+                "Для удаления свертки воспользуйтесь командой: del *\n" + 
+                "\t1) * - строка со сверткой\n");
+
             while (true)
             {
                 string hash = "";
@@ -348,6 +368,7 @@ namespace Manager2
                 int minLength = 0;
                 int maxLength = 0;
 
+                Console.Write("command: ");
                 string[] consolComandArr = Console.ReadLine().Split(' ');
                 
                 if(!((consolComandArr[0] != "add" && consolComandArr[0] == "del") || (consolComandArr[0] != "del" && consolComandArr[0] == "add")))
@@ -479,8 +500,7 @@ namespace Manager2
         }
 
         public void ReadingMessages()//+++++++++++++++++++++++++++++++++++++++++++
-        {
-            Console.WriteLine("работает при старте");
+        {            
             bool solved = false;
 
             while (!solved)
@@ -510,16 +530,25 @@ namespace Manager2
                         string id = message.Body.ToString();
 
                         Message mes = _queue.ReceiveById(message.Id);
-                        Console.WriteLine("Удалили запрос: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
+                      //  Console.WriteLine("Удалили запрос: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
                         mes = _queue.ReceiveById(id);
-                        Console.WriteLine("Удалили задание: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
+                       // Console.WriteLine("Удалили задание: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
                     }
 
                     if (message.Label == "Range")
                     {
+                        string[] dataArr = message.Body.ToString().Split(';');
+                        string ip = dataArr[0];                     
+                        foreach(Agent agent in _agents)
+                        {
+                            if(agent.GetIp() == ip)
+                            {
+                                Distribution.NewRangeForAgent(_queue, agent, _packageHash, 1);
+                                break;
+                            }
+                        }
                         Distribution.UpdateUsedRange(message.Body.ToString());
                         Message mes = _queue.ReceiveById(message.Id);
-                        //Console.WriteLine("Удалили ответ: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
                     }
 
 
