@@ -9,7 +9,7 @@ using System.Security.Cryptography;
 using System.Threading;
 
 namespace Agent
-{   
+{
     public struct Task
     {
         public string _hash;
@@ -24,7 +24,6 @@ namespace Agent
     {
         public List<Task> tasks;
         private string _id = null;
-        //public Task task;
         private string _ip;
         public MessageQueue _queue;
         private int _core;
@@ -69,16 +68,15 @@ namespace Agent
 
         public void DelHash(string myPassword, string myHash)
         {
-            foreach(Task task in tasks)
+            foreach (Task task in tasks)
             {
-                    if (myHash == task._hash)
-                    {
-                        _queue.Send(_ip + ";" + task._message, "Range");
-                        SendStatusMessage();
-                        tasks.Remove(task);
+                if (myHash == task._hash)
+                {
+                    _queue.Send(_ip + ";" + task._message, "Range");
+                    tasks.Remove(task);
                     return;
-                    }
-                }    
+                }
+            }
         }
 
         public void Solver()
@@ -95,42 +93,49 @@ namespace Agent
 
         public void CheckPasswords()
         {
-            Task task = tasks[0];
-            foreach(Task FreeTask in tasks)
+            Task task;
+            foreach (Task FreeTask in tasks)
             {
                 if (!FreeTask._inWork)
+                {
                     task = FreeTask;
-            }
-
-            for(long i = 0; i <= task._countPasswords; i++)
-            {
-                int countOfChar = task._alphabet.Length;
-                long numberOfPassword = task._startPos + i;
-                string password = "";
-                do
-                {
-                    password = task._alphabet[(int)(numberOfPassword % countOfChar)] + password;
-                    numberOfPassword = numberOfPassword / countOfChar;
+                    task._inWork = true;
+                    for (long i = 0, j = 0; i <= task._countPasswords; j++)
+                    {
+                        int countOfChar = task._alphabet.Length;
+                        long numberOfPassword = task._startPos + j;
+                        string password = "";
+                        do
+                        {
+                            password = task._alphabet[(int)(numberOfPassword % countOfChar)] + password;
+                            numberOfPassword = numberOfPassword / countOfChar;
+                        }
+                        while (numberOfPassword != 0);
+                        if (password.Contains(" "))
+                            continue;
+                        Console.WriteLine(password);
+                        string newHash = CalculateMD5Hash(password);
+                        if (newHash == task._hash)
+                        {
+                            Console.WriteLine("Подобрали пароль к свертке: {0} : {1}", newHash, password);
+                            SendGoodMessage(password, newHash);
+                            DelHash(password, newHash);
+                            break;
+                        }
+                        i++;
+                    }
+                    EndOfTask(task._message);
+                    break;
                 }
-                while (numberOfPassword != 0);
-                string newHash = CalculateMD5Hash(password);
-                if (newHash == task._hash)
-                {
-                        Console.WriteLine("Подобрали пароль к свертке: {0} : {1}", newHash, password);
-                        SendGoodMessage(password, newHash);
-                        DelHash(password, newHash);
-                }
             }
-            EndOfTask(task._message);
         }
 
         private void EndOfTask(string message)
         {
-            foreach(Task task in tasks)
-                if(task._message == message)
+            foreach (Task task in tasks)
+                if (task._message == message)
                 {
                     _queue.Send(_ip + ";" + task._message, "Range");
-                    SendStatusMessage();
                     tasks.Remove(task);
                     return;
                 }
@@ -172,12 +177,12 @@ namespace Agent
             Task task = new Task();
             task._message = message;
             string[] param = message.ToString().Split(';');
-            string[] hash = param[0].ToString().Split(' ');
+            string hash = param[0].ToString().ToUpper();
             string[] count = param[2].ToString().Split(' ');
-            task._alphabet = param[1];
+            task._alphabet = " " + param[1];
             task._startPos = Convert.ToInt64(count[0]);
             task._countPasswords = Convert.ToInt64(count[1]);
-            task._hash = param[0];
+            task._hash = param[0].ToUpper();
             task._inWork = false;
             tasks.Add(task);
         }
@@ -186,9 +191,9 @@ namespace Agent
         {
             string path = File.ReadAllText("settings.ini");
             _queue = new MessageQueue(path);//нет никаких проверок, надо потом подумать
-            foreach(Message message in _queue)
+            foreach (Message message in _queue)
             {
-                if(message.Label == "Start")
+                if (message.Label == "Start")
                 {
                     Console.WriteLine("Нашли стартовое сообщение");
                 }
@@ -209,13 +214,13 @@ namespace Agent
         static void Main(string[] args)
         {
             Agent agent = new Agent();
-            while(true)
+            while (true)
             {
                 agent.Solver();
             }
             //DateTime start = DateTime.Now;
             //agent.Solver();
-           // DateTime end = DateTime.Now;
+            // DateTime end = DateTime.Now;
             //int speed = 1000000 * 1000 / (int)(end.Subtract(start)).TotalMilliseconds;
             //Console.WriteLine("Скорость: {0} паролей в секунду", speed);
         }
