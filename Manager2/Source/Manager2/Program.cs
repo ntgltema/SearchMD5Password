@@ -101,7 +101,7 @@ namespace Manager2
             _startPos = InitializeStartPos(minLength);
             _currentPos = _startPos;
             _totalPsw = InitializeTotalPsw(maxLength);
-            _endAllVariant = true;
+            _endAllVariant = false;
             _usedRange = new List<string>();
         }
 
@@ -417,8 +417,7 @@ namespace Manager2
                         maxLength = maxPos == -1 ? 6 : int.Parse(consolComandArr[maxPos + 1]);
                         preg      = pregPos == -1 ? "deErR" : consolComandArr[pregPos + 1];
                     }
-                    ++_countHash;
-
+                   
                     AddHashInPackage(new NewHash(hash, preg, minLength, maxLength));
 
                     if(_resolution)
@@ -466,10 +465,15 @@ namespace Manager2
 
         public void CHUDO()//--------------------------------------------------
         {
-            while(Distribution._usedRange.Count() != 0)
+            while (true)
             {
-                Thread.Sleep(65000);
-                Distribution.DistrOfRemainRange(this, _queue, _agents);
+                while (Distribution._usedRange.Count() != 0)
+                {
+                    Console.WriteLine("Перед запуском чуда {0}", Distribution._usedRange.Count);
+                    Thread.Sleep(65000);
+                    Console.WriteLine("Запустили ЧУДОООООООООО");
+                    Distribution.DistrOfRemainRange(this, _queue, _agents);
+                }
             }
         }
 
@@ -492,6 +496,11 @@ namespace Manager2
         public bool AllEndAllVariant()//********************************************
         {
             bool end = true;
+            
+            if(_packageHash.Count == 0)
+            {
+                return false;
+            }
 
             foreach (NewHash hash in _packageHash)
                 end = end && hash.GetEndAllVariant();
@@ -499,19 +508,29 @@ namespace Manager2
             return end;
         }
 
+        static void ClearLine()
+        {
+            Console.SetCursorPosition(0, Console.CursorTop);
+            Console.Write(new string(' ', Console.WindowWidth));
+            Console.SetCursorPosition(0, Console.CursorTop - 1);
+        }
+
         public void ReadingMessages()//+++++++++++++++++++++++++++++++++++++++++++
         {            
-            bool solved = false;
+           // bool solved = false;
 
-            while (!solved)
+            while (true)
             {
                 foreach (Message message in _queue)
                 {
                     if (message.Label == "ManagerStart")
-                    {
-                        AddOrUpdateAgents(message.Body.ToString());
-                        Message mes = _queue.ReceiveById(message.Id);
-                        Console.WriteLine("Попросил задание: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
+                    {                       
+                        if (_packageHash.Count != 0)
+                        {
+                            AddOrUpdateAgents(message.Body.ToString());
+                            _queue.ReceiveById(message.Id);
+                        }
+                        continue;
                     }
 
                     if (message.Label == "ManagerSOLVED")
@@ -521,8 +540,10 @@ namespace Manager2
                         UpdateHashPackage(dataArr[0]);
                         Distribution.UpdateUsedRange(dataArr[0]);
                         _queue.ReceiveById(message.Id);
+                        ClearLine();
                         Console.WriteLine("Нашли решение: {0} - {1}", dataArr[0], dataArr[1]);
-                        solved = AllSolved();
+                        Console.Write("command: ");
+                        continue;
                     }
 
                     if (message.Label == "ManagerDELETE")
@@ -532,23 +553,33 @@ namespace Manager2
                         Message mes = _queue.ReceiveById(message.Id);
                       //  Console.WriteLine("Удалили запрос: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
                         mes = _queue.ReceiveById(id);
-                       // Console.WriteLine("Удалили задание: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
+                        // Console.WriteLine("Удалили задание: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
+                        continue;
                     }
 
                     if (message.Label == "Range")
                     {
                         string[] dataArr = message.Body.ToString().Split(';');
-                        string ip = dataArr[0];                     
-                        foreach(Agent agent in _agents)
+                        string ip = dataArr[0];
+                      
+                                   
+
+                        if (_packageHash.Count != 0 && !AllEndAllVariant())
                         {
-                            if(agent.GetIp() == ip)
+                            foreach (Agent agent in _agents)
                             {
-                                Distribution.NewRangeForAgent(_queue, agent, _packageHash, 1);
-                                break;
+                                if (agent.GetIp() == ip)
+                                {
+                                    Distribution.NewRangeForAgent(_queue, agent, _packageHash, 1);
+                                    break;
+                                }
                             }
+                                                                                 
+                            _queue.ReceiveById(message.Id);
                         }
+
                         Distribution.UpdateUsedRange(message.Body.ToString());
-                        Message mes = _queue.ReceiveById(message.Id);
+                      //  Console.WriteLine("После отработки range {0}", Distribution._usedRange.Count);
                     }
 
 
@@ -564,11 +595,11 @@ namespace Manager2
                 }            
             }
 
-            Console.WriteLine("Решение найдено:");
+           /* Console.WriteLine("Решение найдено:");
             foreach(SolvedConvol solv in GetListSolved())
             {
                 Console.WriteLine(solv.GetHashStr() + " - " + solv.GetSolvedStr());
-            }
+            }*/
         }
     }
 

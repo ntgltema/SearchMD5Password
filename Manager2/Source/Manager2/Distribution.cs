@@ -15,7 +15,7 @@ namespace Manager2
         static public int _countMessage = 0;
         static private List<Agent> _agents = new List<Agent>();
 
-        public static void UpdateUsedRange(string removeHash)//+++++++++++++++++++++++++++++++++++++++++++
+        public static void UpdateUsedRange(string removeHash)
         {
             _usedRange.RemoveAll(delegate (string message)
             {
@@ -27,7 +27,7 @@ namespace Manager2
             });            
         }
 
-        public static void NewRangeForAgent(MessageQueue queue, Agent agent, List<NewHash> hashPackage, int countTask)//+++++++++++++++++++++++++++++++++++++++++++
+        public static void NewRangeForAgent(MessageQueue queue, Agent agent, List<NewHash> hashPackage, int countTask)
         {
             if (hashPackage.Count > 0)
             {
@@ -41,11 +41,11 @@ namespace Manager2
 
                     if (startRange < hash.GetTotalPsw())
                     {
-                        queue.Send(hash.GetHash() + ";" + hash.GetAlphaStr() + ";" + startRange + " " + countPswInRange, agent.GetIp());
-                        _usedRange.Add(agent.GetIp() + ";" + hash.GetHash() + ";" + hash.GetAlphaStr() + ";" + startRange + " " + countPswInRange);
+                        long totalSecond =(long)DateTime.Now.Subtract(new DateTime()).TotalSeconds;
+                        queue.Send(hash.GetHash() + ";" + hash.GetAlphaStr() + ";" + startRange + " " + countPswInRange + ";" + totalSecond, agent.GetIp());
+                        _usedRange.Add(agent.GetIp() + ";" + hash.GetHash() + ";" + hash.GetAlphaStr() + ";" + startRange + " " + countPswInRange + ";" + totalSecond);
                         hash.SetCurrentPos(countPswInRange);
                         ++_countMessage;
-                        Console.WriteLine("Выдали задание");
                     }
 
                     if (startRange >= hash.GetTotalPsw())
@@ -67,49 +67,69 @@ namespace Manager2
 
             foreach(string range in _usedRange)
             {
+
                 string[] dataArr = range.Split(';');
                 string ipRemove = dataArr[0];
+                long dataOfCreateRange = long.Parse(dataArr[4]);
 
-                if (ipRemove != "")
-                { 
-                    agents.RemoveAll(delegate(Agent agent) {
-                        if (agent.GetIp() == ipRemove)
-                            return true;
-                        return false;
-                    });
+                if (DateTime.Now.Subtract(new DateTime()).TotalSeconds - dataOfCreateRange > 70)
+                {
+                    if (ipRemove != "")
+                    {
+                        agents.RemoveAll(delegate (Agent agent)
+                        {
+                            if (agent.GetIp() == ipRemove)
+                                return true;
+                            return false;
+                        });
+                    }
                 }
             }
 
             manager.SetAgents(agents);
-            List<string> tempUsedRange = new List<string>();
-                                         
-            foreach (string range in _usedRange)
+
+            if (agents.Count != 0)
             {
-                string[] dataArr = range.Split(';');
-                string rangeStr = dataArr[3];
+                List<string> tempUsedRange = new List<string>();
 
-                string[] dataArrRange = rangeStr.Split(' ');
-                long startRange = long.Parse(dataArrRange[0]);
-                long totalPswInRange = long.Parse(dataArrRange[1]);
-
-                long countPswInRange = 0;
-                int indexCurrentAgent = 0;
-               
-                while (startRange < totalPswInRange + startRange)
+                foreach (string range in _usedRange)
                 {
-                    indexCurrentAgent = _countMessage % agents.Count();       
-                    countPswInRange = agents[indexCurrentAgent].GetSpeed() > totalPswInRange ? totalPswInRange : agents[indexCurrentAgent].GetSpeed();
+                    string[] dataArr = range.Split(';');
+                    string rangeStr = dataArr[3];
+                    long dataOfCreateRange = long.Parse(dataArr[4]);
 
-                    queue.Send(dataArr[1]+";" + dataArr[2] + ";" + startRange + " " + countPswInRange, agents[indexCurrentAgent].GetIp());
-                    tempUsedRange.Add(agents[indexCurrentAgent].GetIp() + ";" + dataArr[1] + ";" + dataArr[2] + ";" + startRange + " " + countPswInRange);
+                    if (DateTime.Now.Subtract(new DateTime()).TotalSeconds - dataOfCreateRange > 70)
+                    {
+                        string[] dataArrRange = rangeStr.Split(' ');
+                        long startRange = long.Parse(dataArrRange[0]);
+                        long totalPswInRange = long.Parse(dataArrRange[1]);
 
-                    totalPswInRange -= countPswInRange;
-                    startRange += countPswInRange;
-                    ++_countMessage;
+                        long countPswInRange = 0;
+                        int indexCurrentAgent = 0;
+
+                        while (startRange < totalPswInRange + startRange)
+                        {
+                            indexCurrentAgent = _countMessage % agents.Count();
+                            countPswInRange = agents[indexCurrentAgent].GetSpeed() > totalPswInRange ? totalPswInRange : agents[indexCurrentAgent].GetSpeed();
+
+                            queue.Send(dataArr[1] + ";" + dataArr[2] + ";" + startRange + " " + countPswInRange, agents[indexCurrentAgent].GetIp());
+                            tempUsedRange.Add(agents[indexCurrentAgent].GetIp() + ";" + dataArr[1] + ";" + dataArr[2] + ";" + startRange + " " + countPswInRange);
+
+                            totalPswInRange -= countPswInRange;
+                            startRange += countPswInRange;
+                            ++_countMessage;
+                        }
+                    } else
+                    {
+                        Console.WriteLine("Молоко еще не обсохло");
+                    }
                 }
-            }
 
-            _usedRange = tempUsedRange;
+                _usedRange = tempUsedRange;
+            } else
+            {
+                Console.WriteLine("Нет активыных агентов!!!");
+            }
         }   
     }
 }

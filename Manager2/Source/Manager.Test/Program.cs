@@ -23,7 +23,7 @@ namespace Manager2.Test
             Assert.AreEqual(1587031809, hash.GetTotalPsw());
 
             hash.SetCurrentPos(20000);
-            Assert.AreEqual(24831, hash.GetCurrentPos());
+            Assert.AreEqual(24830, hash.GetCurrentPos());
         }
 
         public void AgentTest()
