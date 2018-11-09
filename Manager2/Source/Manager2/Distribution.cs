@@ -15,6 +15,18 @@ namespace Manager2
         static public int _countMessage = 0;
         static private List<Agent> _agents = new List<Agent>();
 
+        static void ClearLine()
+        {
+            Console.SetCursorPosition(0, Console.CursorTop);
+            Console.Write(new string(' ', Console.WindowWidth));
+            Console.SetCursorPosition(0, Console.CursorTop - 1);
+        }
+
+        static void WriteCommand()
+        {
+            Console.Write("command: ");
+        }
+
         public static void UpdateUsedRange(string removeHash)
         {
             _usedRange.RemoveAll(delegate (string message)
@@ -27,7 +39,7 @@ namespace Manager2
             });            
         }
 
-        public static void NewRangeForAgent(MessageQueue queue, Agent agent, List<NewHash> hashPackage, int countTask)
+        public static bool NewRangeForAgent(MessageQueue queue, Agent agent, List<NewHash> hashPackage, int countTask)
         {
             if (hashPackage.Count > 0)
             {
@@ -41,24 +53,33 @@ namespace Manager2
 
                     if (startRange < hash.GetTotalPsw())
                     {
-                        long totalSecond =(long)DateTime.Now.Subtract(new DateTime()).TotalSeconds;
+                        long totalSecond = (long)DateTime.Now.Subtract(new DateTime()).TotalSeconds;
                         queue.Send(hash.GetHash() + ";" + hash.GetAlphaStr() + ";" + startRange + " " + countPswInRange + ";" + totalSecond, agent.GetIp());
                         _usedRange.Add(agent.GetIp() + ";" + hash.GetHash() + ";" + hash.GetAlphaStr() + ";" + startRange + " " + countPswInRange + ";" + totalSecond);
                         hash.SetCurrentPos(countPswInRange);
                         ++_countMessage;
                     }
 
-                    if (startRange >= hash.GetTotalPsw())
-                    {
-                        Console.WriteLine("Не выдали задание по причине конца заданий");
-                    }
-
                     if (hash.GetCurrentPos() >= hash.GetTotalPsw())
                     {
                         hash.SetEndAllVariant();
                     }
+
+                    if (startRange >= hash.GetTotalPsw())
+                    {
+                        for (int j = i; j < countTask; ++j)
+                        {
+                            queue.Send(agent.GetIp() + " " + (agent.GetSpeed() / 60).ToString() + " " + agent.GetCore(), "ManagerStart");
+                        }
+                        return false;
+                    }
                 }
+            } else
+            {
+                return false;
             }
+
+            return true;
         }
 
         public static void DistrOfRemainRange(Manager manager, MessageQueue queue, List<Agent> agents)//+++++++++++++++++++++++++++++++++++++++++++
@@ -112,8 +133,10 @@ namespace Manager2
                             indexCurrentAgent = _countMessage % agents.Count();
                             countPswInRange = agents[indexCurrentAgent].GetSpeed() > totalPswInRange ? totalPswInRange : agents[indexCurrentAgent].GetSpeed();
 
-                            queue.Send(dataArr[1] + ";" + dataArr[2] + ";" + startRange + " " + countPswInRange, agents[indexCurrentAgent].GetIp());
-                            tempUsedRange.Add(agents[indexCurrentAgent].GetIp() + ";" + dataArr[1] + ";" + dataArr[2] + ";" + startRange + " " + countPswInRange);
+                            long totalSecond = (long)DateTime.Now.Subtract(new DateTime()).TotalSeconds;
+
+                            queue.Send(dataArr[1] + ";" + dataArr[2] + ";" + startRange + " " + countPswInRange + ";" + totalSecond.ToString(), agents[indexCurrentAgent].GetIp());
+                            tempUsedRange.Add(agents[indexCurrentAgent].GetIp() + ";" + dataArr[1] + ";" + dataArr[2] + ";" + startRange + " " + countPswInRange + ";" + totalSecond.ToString());
 
                             totalPswInRange -= countPswInRange;
                             startRange += countPswInRange;
@@ -121,7 +144,7 @@ namespace Manager2
                         }
                     } else
                     {
-                        Console.WriteLine("Молоко еще не обсохло");
+                        tempUsedRange.Add(range);
                     }
                 }
 
