@@ -17,6 +17,7 @@ namespace Agent
         public long _countPasswords;
         public string _alphabet;
         public string _message;
+        public bool _isTask;
     }
 
     public class Agent
@@ -98,7 +99,8 @@ namespace Agent
                     _startPos = i * 2500000,
                     _countPasswords = 2500000,
                     _alphabet = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890",
-                    _hash = "aaa"
+                    _hash = "aaa",
+                    _isTask = false
                 };
 
                 tasks.Add(task);
@@ -277,7 +279,8 @@ namespace Agent
             foreach (Task task in tasks)
                 if (task._message == message)
                 {
-                    _queue.Send(_ip + ";" + task._message, "Range");
+                    if(task._isTask)
+                        _queue.Send(_ip + ";" + task._message, "Range");
 
                     tasks.Remove(task);
 
@@ -335,6 +338,7 @@ namespace Agent
             task._startPos = Convert.ToInt64(count[0]);
             task._countPasswords = Convert.ToInt64(count[1]);
             task._hash = param[0].ToUpper();
+            task._isTask = true;
 
             tasks.Add(task);
         }
