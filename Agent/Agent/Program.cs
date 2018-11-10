@@ -96,8 +96,8 @@ namespace Agent
             {
                 Task task = new Task
                 {
-                    _startPos = i * 2500000,
-                    _countPasswords = 2500000,
+                    _startPos = i * 250000,
+                    _countPasswords = 250000,
                     _alphabet = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890",
                     _hash = "aaa",
                     _isTask = false
@@ -116,7 +116,7 @@ namespace Agent
 
             DateTime end = DateTime.Now;
 
-            _speed = (int)2500000 * _core / (int)(end.Subtract(start)).TotalMilliseconds * 1000;
+            _speed = (int)250000 * _core / (int)(end.Subtract(start)).TotalMilliseconds * 1000;
         }
 
         private void SendStatusMessage()
@@ -288,21 +288,20 @@ namespace Agent
                 }
         }
 
-        public string CalculateMD5Hash(string password)
+        static string CalculateMD5Hash(string input)
         {
-            MD5 md5 = System.Security.Cryptography.MD5.Create();
+            MD5 md5Hash = System.Security.Cryptography.MD5.Create();
+     
+            byte[] data = md5Hash.ComputeHash(Encoding.UTF8.GetBytes(input));
 
-            byte[] inputBytes = System.Text.Encoding.ASCII.GetBytes(password);
-            byte[] hash = md5.ComputeHash(inputBytes);
-
-            StringBuilder sb = new StringBuilder();
-
-            for (int i = 0; i < hash.Length; i++)
+            
+            StringBuilder sBuilder = new StringBuilder();
+            for (int i = 0; i < data.Length; i++)
             {
-                sb.Append(hash[i].ToString("X2"));
+                sBuilder.Append(data[i].ToString("x2"));
             }
 
-            return sb.ToString();
+            return sBuilder.ToString();
         }
 
         public bool CheckMessage()
@@ -337,7 +336,7 @@ namespace Agent
             task._alphabet = param[1];
             task._startPos = Convert.ToInt64(count[0]);
             task._countPasswords = Convert.ToInt64(count[1]);
-            task._hash = param[0].ToUpper();
+            task._hash = param[0].ToLower();
             task._isTask = true;
 
             tasks.Add(task);
