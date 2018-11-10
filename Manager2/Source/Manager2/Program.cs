@@ -334,6 +334,7 @@ namespace Manager2
 
             var queue = new MessageQueue(@".\private$\" + nameQueue);
             queue.SetPermissions("Все", MessageQueueAccessRights.FullControl);
+            queue.Purge();
             queue.Send("Start", "Start");
 
             return queue;
@@ -368,7 +369,7 @@ namespace Manager2
                 int minLength = 0;
                 int maxLength = 0;
 
-                Console.Write("command: ");
+                WriteCommand();
                 string[] consolComandArr = Console.ReadLine().Split(' ');
                 
                 if(!((consolComandArr[0] != "add" && consolComandArr[0] == "del") || (consolComandArr[0] != "del" && consolComandArr[0] == "add")))
@@ -463,16 +464,27 @@ namespace Manager2
             }
         }
 
-        public void CHUDO()//--------------------------------------------------
+        public void WriteCommand()
         {
+            Console.Write("command: ");
+        }
+
+        public void CheckRemainRange()//--------------------------------------------------
+        {
+            ClearLine();
+            Console.WriteLine("Запустили тред, обрабатывающий необработынные агентами диапазоны");
+            WriteCommand();
             while (true)
             {
+                Thread.Sleep(65000);
                 while (Distribution._usedRange.Count() != 0)
-                {
-                    Console.WriteLine("Перед запуском чуда {0}", Distribution._usedRange.Count);
-                    Thread.Sleep(65000);
-                    Console.WriteLine("Запустили ЧУДОООООООООО");
+                { 
+                    ClearLine();
+                    Console.WriteLine("Количество необработанных диапазонов {0}", Distribution._usedRange.Count);
+                    WriteCommand();
+
                     Distribution.DistrOfRemainRange(this, _queue, _agents);
+                    Thread.Sleep(65000);
                 }
             }
         }
@@ -493,7 +505,7 @@ namespace Manager2
             return solved;
         }
 
-        public bool AllEndAllVariant()//********************************************
+        public bool AllHashesAtTheEndOFTheRange()//********************************************
         {
             bool end = true;
             
@@ -517,8 +529,6 @@ namespace Manager2
 
         public void ReadingMessages()//+++++++++++++++++++++++++++++++++++++++++++
         {            
-           // bool solved = false;
-
             while (true)
             {
                 foreach (Message message in _queue)
@@ -542,7 +552,7 @@ namespace Manager2
                         _queue.ReceiveById(message.Id);
                         ClearLine();
                         Console.WriteLine("Нашли решение: {0} - {1}", dataArr[0], dataArr[1]);
-                        Console.Write("command: ");
+                        WriteCommand();
                         continue;
                     }
 
@@ -551,9 +561,7 @@ namespace Manager2
                         string id = message.Body.ToString();
 
                         Message mes = _queue.ReceiveById(message.Id);
-                      //  Console.WriteLine("Удалили запрос: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
                         mes = _queue.ReceiveById(id);
-                        // Console.WriteLine("Удалили задание: '{0}' имеющее id: '{1}'", mes.Body, mes.Id);
                         continue;
                     }
 
@@ -561,45 +569,36 @@ namespace Manager2
                     {
                         string[] dataArr = message.Body.ToString().Split(';');
                         string ip = dataArr[0];
-                      
-                                   
 
-                        if (_packageHash.Count != 0 && !AllEndAllVariant())
+                        if (_packageHash.Count != 0 && !AllHashesAtTheEndOFTheRange())
                         {
                             foreach (Agent agent in _agents)
                             {
                                 if (agent.GetIp() == ip)
                                 {
-                                    Distribution.NewRangeForAgent(_queue, agent, _packageHash, 1);
+                                    if (Distribution.NewRangeForAgent(_queue, agent, _packageHash, 1))
+                                        _queue.ReceiveById(message.Id);
+
                                     break;
                                 }
                             }
-                                                                                 
-                            _queue.ReceiveById(message.Id);
                         }
 
                         Distribution.UpdateUsedRange(message.Body.ToString());
-                      //  Console.WriteLine("После отработки range {0}", Distribution._usedRange.Count);
                     }
 
 
-                    if (AllEndAllVariant())
+                    if (AllHashesAtTheEndOFTheRange())
                     {
                         if (Distribution._endAllVariant)
                         { 
-                            Thread range = new Thread(new ThreadStart(CHUDO));
+                            Thread range = new Thread(new ThreadStart(CheckRemainRange));
                             range.Start();
                             Distribution._endAllVariant = false;
                         }
                     }
                 }            
             }
-
-           /* Console.WriteLine("Решение найдено:");
-            foreach(SolvedConvol solv in GetListSolved())
-            {
-                Console.WriteLine(solv.GetHashStr() + " - " + solv.GetSolvedStr());
-            }*/
         }
     }
 

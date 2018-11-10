@@ -152,11 +152,11 @@ namespace Manager2.Test
 
         public void UpdateUsedPackageTest()
         {
-            Distribution._usedRange.Add("ip;хеш1;alpha1;range1");
-            Distribution._usedRange.Add("ip;хеш2;alpha2;range1");
-            Distribution._usedRange.Add("ip;хеш3;alpha3;range1");
-            Distribution._usedRange.Add("ip;хеш2;alpha4;range1");
-            Distribution._usedRange.Add("ip;хеш4;alpha5;range1");
+            Distribution._usedRange.Add("ip;хеш1;alpha1;range1;time1");
+            Distribution._usedRange.Add("ip;хеш2;alpha2;range1;time2");
+            Distribution._usedRange.Add("ip;хеш3;alpha3;range1;time3");
+            Distribution._usedRange.Add("ip;хеш2;alpha4;range1;time4");
+            Distribution._usedRange.Add("ip;хеш4;alpha5;range1;time5");
             Assert.AreEqual(5, Distribution._usedRange.Count);
 
             Distribution.UpdateUsedRange("хеш2");
@@ -169,7 +169,7 @@ namespace Manager2.Test
                 Assert.AreNotEqual("хеш2", dataArrMessage[1]);
             }
 
-            Distribution.UpdateUsedRange("ip;хеш4;alpha5;range1");
+            Distribution.UpdateUsedRange("ip;хеш4;alpha5;range1;time5");
             Assert.AreEqual(2, Distribution._usedRange.Count);
 
             foreach (string message in Distribution._usedRange)
@@ -222,15 +222,19 @@ namespace Manager2.Test
 
             Distribution.NewRangeForAgent(queue, agent, manager.GetListHash(), agent.GetCore());
             Assert.AreEqual(2, Distribution._usedRange.Count);
-            Assert.AreEqual("192.168.25.9;хеш1;0123456789;0 80000", Distribution._usedRange[0]);
-            Assert.AreEqual("192.168.25.9;хеш2;0123456789;10 80000", Distribution._usedRange[1]);
-            Assert.AreEqual(80001, hash1.GetCurrentPos());
+
+            string timeSendMessage0 = (Distribution._usedRange[0]).Split(';')[4];
+            string timeSendMessage1 = (Distribution._usedRange[1]).Split(';')[4];
+
+            Assert.AreEqual("192.168.25.9;хеш1;0123456789;0 80000" + ";" + timeSendMessage0.ToString(), Distribution._usedRange[0]);
+            Assert.AreEqual("192.168.25.9;хеш2;0123456789;10 80000" + ";" + timeSendMessage1.ToString(), Distribution._usedRange[1]);
+            Assert.AreEqual(80000, hash1.GetCurrentPos());
 
             Message[] allMessgaes = queue.GetAllMessages();
             Assert.AreEqual("192.168.25.9", allMessgaes[0].Label);
             Assert.AreEqual("192.168.25.9", allMessgaes[1].Label);
-            Assert.AreEqual("хеш1;0123456789;0 80000", allMessgaes[0].Body.ToString());
-            Assert.AreEqual("хеш2;0123456789;10 80000", allMessgaes[1].Body.ToString());
+            Assert.AreEqual("хеш1;0123456789;0 80000" + ";" + timeSendMessage0.ToString(), allMessgaes[0].Body.ToString());
+            Assert.AreEqual("хеш2;0123456789;10 80000" + ";" + timeSendMessage1.ToString(), allMessgaes[1].Body.ToString());
             queue.Purge();
             Distribution._endAllVariant = false;
         }
@@ -251,20 +255,24 @@ namespace Manager2.Test
 
             Distribution.NewRangeForAgent(queue, agent, manager.GetListHash(), agent.GetCore());
             Assert.AreEqual(2, Distribution._usedRange.Count);
-            Assert.AreEqual("192.168.25.9;хеш1;0123456789;0 1111", Distribution._usedRange[0]);
-            Assert.AreEqual("192.168.25.9;хеш2;abcdefghijklmnopqrstuvwxyz;26 18253", Distribution._usedRange[1]);
+
+            string timeSendMessage0 = (Distribution._usedRange[0]).Split(';')[4];
+            string timeSendMessage1 = (Distribution._usedRange[1]).Split(';')[4];
+
+            Assert.AreEqual("192.168.25.9;хеш1;0123456789;0 1111" + ";" + timeSendMessage0.ToString(), Distribution._usedRange[0]);
+            Assert.AreEqual("192.168.25.9;хеш2;abcdefghijklmnopqrstuvwxyz;26 18253" + ";" + timeSendMessage1.ToString(), Distribution._usedRange[1]);
 
             Message[] allMessgaes = queue.GetAllMessages();
             Assert.AreEqual("192.168.25.9", allMessgaes[0].Label);
             Assert.AreEqual("192.168.25.9", allMessgaes[1].Label);
-            Assert.AreEqual("хеш1;0123456789;0 1111", allMessgaes[0].Body.ToString());
-            Assert.AreEqual("хеш2;abcdefghijklmnopqrstuvwxyz;26 18253", allMessgaes[1].Body.ToString());
+            Assert.AreEqual("хеш1;0123456789;0 1111" + ";" + timeSendMessage0.ToString(), allMessgaes[0].Body.ToString());
+            Assert.AreEqual("хеш2;abcdefghijklmnopqrstuvwxyz;26 18253" + ";" + timeSendMessage1.ToString(), allMessgaes[1].Body.ToString());
             queue.Purge();
             Distribution._endAllVariant = false;
             Distribution._usedRange.Clear();
         }
 
-        /*[Test]
+        [Test]
         public void DistrOfRemainRangeTest()
         {
             Manager manager = new Manager(Manager.CreateQueue("myTestQueue"));
@@ -273,23 +281,34 @@ namespace Manager2.Test
             queue.Purge();
             Distribution._usedRange.Clear();
         
-            Agent agent1 = new Agent(2, 26000, "192.168.25.9");
+            Agent agent1 = new Agent(2, 24000, "192.168.25.9");
             Agent agent2 = new Agent(3, 12345, "137.168.25.9");
             Agent agent3 = new Agent(4, 56783, "145.168.25.9");
             Agent agent4 = new Agent(5, 85743, "158.168.25.9");
-            Agent agent5 = new Agent(2, 50300, "237.168.25.9");
+            Agent agent5 = new Agent(2, 45000, "237.168.25.9");
             List<Agent> agents = new List<Agent> { agent1, agent2, agent3, agent4, agent5 };
 
-            Distribution._usedRange.Add("137.168.25.9;хеш1 хеш2;10000 30000");
-            Distribution._usedRange.Add("158.168.25.9;хеш3;30000 60000");
+            Distribution._usedRange.Add("137.168.25.9;хеш2;abcdefghijklmnopqrstuvwxyz;10000 30000;643");
+            Distribution._usedRange.Add("158.168.25.9;хеш3;0123456789;30000 60000;643");
+
+            long totalSecond = (long)DateTime.Now.Subtract(new DateTime()).TotalSeconds;
+            Distribution._usedRange.Add("158.168.25.9;хеш4;prostavbnam5;30000 60000;" + totalSecond.ToString());
 
             Distribution.DistrOfRemainRange(manager, queue, agents);
             Assert.AreEqual(3, manager.GetList().Count);
-            Assert.AreEqual(4, Distribution._usedRange.Count);
-            Assert.AreEqual("192.168.25.9;хеш1 хеш2;10000 26000", Distribution._usedRange[0]);
-            Assert.AreEqual("145.168.25.9;хеш1 хеш2;36001 4000", Distribution._usedRange[1]);
-            Assert.AreEqual("237.168.25.9;хеш3;30000 50300", Distribution._usedRange[2]);
-            Assert.AreEqual("192.168.25.9;хеш3;80301 9700", Distribution._usedRange[3]);
+            Assert.AreEqual(5, Distribution._usedRange.Count);
+
+
+            string timeSendMessage0 = (Distribution._usedRange[0]).Split(';')[4];
+            string timeSendMessage1 = (Distribution._usedRange[1]).Split(';')[4];
+            string timeSendMessage2 = (Distribution._usedRange[2]).Split(';')[4];
+            string timeSendMessage3 = (Distribution._usedRange[3]).Split(';')[4];
+
+            Assert.AreEqual("192.168.25.9;хеш2;abcdefghijklmnopqrstuvwxyz;10000 24000" + ";" + timeSendMessage0.ToString(), Distribution._usedRange[0]);
+            Assert.AreEqual("145.168.25.9;хеш2;abcdefghijklmnopqrstuvwxyz;34000 6000" + ";" + timeSendMessage1.ToString(), Distribution._usedRange[1]);
+            Assert.AreEqual("237.168.25.9;хеш3;0123456789;30000 45000" + ";" +  timeSendMessage2.ToString(), Distribution._usedRange[2]);
+            Assert.AreEqual("192.168.25.9;хеш3;0123456789;75000 15000" + ";" + timeSendMessage3.ToString(), Distribution._usedRange[3]);
+            Assert.AreEqual("158.168.25.9;хеш4;prostavbnam5;30000 60000;" + totalSecond.ToString(), Distribution._usedRange[4]);
 
             queue.Purge();
             Distribution._endAllVariant = false;
@@ -303,38 +322,42 @@ namespace Manager2.Test
 
             MessageQueue queue = manager.GetQueue();
             queue.Purge();
-            Distribution._totalCountPsw = 5000000;
 
-            manager.AddHashInPackage(new HashConvol("хеш1"));
-            manager.AddHashInPackage(new HashConvol("хеш2"));
-            manager.AddHashInPackage(new HashConvol("хеш3"));
+            NewHash hash1 = new NewHash("hash1", "er", 2, 3);
+            NewHash hash2 = new NewHash("hash2", "d", 3, 4);
+            NewHash hash3 = new NewHash("hash3", "R", 2, 5);
+            manager.AddHashInPackage(hash1);
+            manager.AddHashInPackage(hash2);
+            manager.AddHashInPackage(hash3);
+
             queue.Send("192.168.25.9 56783 2", "ManagerStart");
             queue.Send("237.168.25.9 30000 4", "ManagerStart");
             queue.Send("145.168.25.9 40000 2", "ManagerStart");
-            queue.Send("хеш1 solved1", "ManagerSOLVED");
-            queue.Send("хеш2 solved2", "ManagerSOLVED");
+            queue.Send("hash1 solved1", "ManagerSOLVED");
+            queue.Send("hash3 solved3", "ManagerSOLVED");
 
-            Thread messageRead =new Thread(new ThreadStart(manager.ReadingMessages));
+            Thread messageRead = new Thread(new ThreadStart(manager.ReadingMessages));
             messageRead.Start();
             Thread.Sleep(50);
             Assert.AreEqual(3, manager.GetList().Count);
             Assert.AreEqual(1, manager.GetListHash().Count);
             Assert.AreEqual(2, manager.GetListSolved().Count);
-            Assert.AreEqual(8, Distribution._usedRange.Count);
+            Assert.AreEqual(1, Distribution._usedRange.Count);
 
-            queue.Send("192.168.25.9;хеш1 хеш2 хеш3;0 56783", "Range");
+            queue.Send(Distribution._usedRange[0], "Range");
             Thread.Sleep(50);
-            Assert.AreEqual(7, Distribution._usedRange.Count);
-            queue.Send("хеш3 solved3", "ManagerSOLVED");
+            Assert.AreEqual(0, Distribution._usedRange.Count);
+            queue.Send("hash2 solved3", "ManagerSOLVED");
             Thread.Sleep(50);
+            Assert.AreEqual(0, manager.GetListHash().Count);
+            Assert.AreEqual(3, manager.GetListSolved().Count);
 
+            messageRead.Abort();
             queue.Purge();
-            Distribution._totalCountPsw = 4432676798592;
-            Distribution._currentPosInRange = 0;
             Distribution._endAllVariant = false;
             messageRead.Abort();
             Distribution._usedRange.Clear();
-        }*/
+        }
     }
 
     class Program
@@ -355,8 +378,8 @@ namespace Manager2.Test
             test.UpdateUsedPackageTest();
             test.NewRangeForAgentTest1();
             test.NewRangeForAgentTest2();
-           /* test.DistrOfRemainRangeTest();
-            test.ReadingMessagesTest();*/
+            test.DistrOfRemainRangeTest();
+            test.ReadingMessagesTest();
         }
     }
 }
