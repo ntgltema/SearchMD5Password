@@ -17,13 +17,12 @@ namespace Agent
         public long _countPasswords;
         public string _alphabet;
         public string _message;
-        public bool _inWork;
     }
 
     public class Agent
     {
         public List<Task> tasks;
-        private string _id = null;
+        public List<string> listOfPassword;
         private string _ip;
         public MessageQueue _queue;
         private int _core;
@@ -46,19 +45,24 @@ namespace Agent
 
         public void SetPassPerSeconds()
         {
-            //for (int i = 0; i < _core; i++)
-            //{
-            //    Task task = new Task();
-            //    task._startPos = i * 250000;
-            //    task._countPasswords = 250000;
-            //    task._hash = new List<string>() { "aaa" };
-            //    tasks.Add(task);
-            //}
-            //DateTime start = DateTime.Now;
-            //Solver();
-            //DateTime end = DateTime.Now;
-            //_speed = (int)250000 * 1000 * _core / (int)(end.Subtract(start)).TotalMilliseconds;
-            _speed = 10000;
+            List<Thread> threads = new List<Thread>();
+            DateTime start = DateTime.Now;
+            for (int i = 0; i < _core; i++)
+            {
+                Task task = new Task();
+                task._startPos = i * 2500000;
+                task._countPasswords = 2500000;
+                task._alphabet = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890";
+                task._hash = "aaa";
+                tasks.Add(task);
+                Thread thread = new Thread(this.CheckPasswords);
+                threads.Add(thread);
+                thread.Start();
+            }
+            foreach (Thread thread in threads)
+                thread.Join();
+            DateTime end = DateTime.Now;
+            _speed = (int)2500000 * _core / (int)(end.Subtract(start)).TotalMilliseconds * 1000;
         }
 
         public void SendGoodMessage(string myPassword, string myHash)
@@ -91,43 +95,104 @@ namespace Agent
             }
         }
 
+        public void SetStartSymbols(ref int ch1, ref int ch2, ref int ch3, ref int ch4, ref int ch5, ref int ch6, int countOfChar, long startPos)
+        {
+            long count = startPos;
+            ch6 = (int)(count % countOfChar);
+            count -= countOfChar;
+            if (count > 0)
+            {
+                count /= countOfChar;
+                ch5 = (int)(count % countOfChar);
+                count -= countOfChar;
+            }
+            if (count > 0)
+            {
+                count /= countOfChar;
+                ch4 = (int)(count % countOfChar);
+                count -= countOfChar;
+            }
+            if (count > 0)
+            {
+                count /= countOfChar;
+                ch3 = (int)(count % countOfChar);
+                count -= countOfChar;
+            }
+            if (count > 0)
+            {
+                count /= countOfChar;
+                ch2 = (int)(count % countOfChar);
+                count -= countOfChar;
+            }
+            if (count > 0)
+            {
+                count /= countOfChar;
+                ch1 = (int)(count % countOfChar);
+            }
+        }
+
         public void CheckPasswords()
         {
-            Task task;
-            foreach (Task FreeTask in tasks)
+            Task task = tasks.Last();
+            int ch1 = -1, ch2 = -1, ch3 = -1, ch4 = -1, ch5 = -1, ch6 = -1;
+            long counter = 0;
+            int countOfChar = task._alphabet.Length;
+            SetStartSymbols(ref ch1, ref ch2, ref ch3, ref ch4, ref ch5, ref ch6, countOfChar, task._startPos);
+            string password = "";
+            for (; ch1 < countOfChar; ch1++)
             {
-                if (!FreeTask._inWork)
+                string password1 = password;
+                if (ch1 >= 0)
+                    password1 += task._alphabet[ch1];
+                for (; ch2 < countOfChar; ch2++)
                 {
-                    task = FreeTask;
-                    task._inWork = true;
-                    for (long i = 0, j = 0; i <= task._countPasswords; j++)
+                    string password2 = password1;
+                    if (ch2 >= 0)
+                        password2 += task._alphabet[ch2];
+                    for (; ch3 < countOfChar; ch3++)
                     {
-                        int countOfChar = task._alphabet.Length;
-                        long numberOfPassword = task._startPos + j;
-                        string password = "";
-                        do
+                        string password3 = password2;
+                        if (ch3 >= 0)
+                            password3 += task._alphabet[ch3];
+                        for (; ch4 < countOfChar; ch4++)
                         {
-                            password = task._alphabet[(int)(numberOfPassword % countOfChar)] + password;
-                            numberOfPassword = numberOfPassword / countOfChar;
+                            string password4 = password3;
+                            if (ch4 >= 0)
+                                password4 += task._alphabet[ch4];
+                            for (; ch5 < countOfChar; ch5++)
+                            {
+                                string password5 = password4;
+                                if (ch5 >= 0)
+                                    password5 += task._alphabet[ch5];
+                                for (; ch6 < countOfChar; ch6++)
+                                {
+                                    if (counter == task._countPasswords)
+                                    {
+                                        EndOfTask(task._message);
+                                        return;
+                                    }
+                                    string password6 = password5 + task._alphabet[ch6];
+                                    string newHash = CalculateMD5Hash(password6);
+                                    if (newHash == task._hash)
+                                    {
+                                        Console.WriteLine("Подобрали пароль к свертке: {0} : {1}", newHash, password6);
+                                        SendGoodMessage(password6, newHash);
+                                        DelHash(password6, newHash);
+                                        return;
+                                    }
+                                    counter++;
+                                }
+                                ch6 = 0;
+                            }
+                            ch5 = 0;
                         }
-                        while (numberOfPassword != 0);
-                        if (password.Contains(" "))
-                            continue;
-                        Console.WriteLine(password);
-                        string newHash = CalculateMD5Hash(password);
-                        if (newHash == task._hash)
-                        {
-                            Console.WriteLine("Подобрали пароль к свертке: {0} : {1}", newHash, password);
-                            SendGoodMessage(password, newHash);
-                            DelHash(password, newHash);
-                            break;
-                        }
-                        i++;
+                        ch4 = 0;
                     }
-                    EndOfTask(task._message);
-                    break;
+                    ch3 = 0;
                 }
+                ch2 = 0;
             }
+            EndOfTask(task._message);
         }
 
         private void EndOfTask(string message)
@@ -179,11 +244,10 @@ namespace Agent
             string[] param = message.ToString().Split(';');
             string hash = param[0].ToString().ToUpper();
             string[] count = param[2].ToString().Split(' ');
-            task._alphabet = " " + param[1];
+            task._alphabet = param[1];
             task._startPos = Convert.ToInt64(count[0]);
             task._countPasswords = Convert.ToInt64(count[1]);
             task._hash = param[0].ToUpper();
-            task._inWork = false;
             tasks.Add(task);
         }
 
@@ -200,8 +264,8 @@ namespace Agent
             }
             SetCoreCount();
             SetIp();
-            SetPassPerSeconds();
             tasks = new List<Task>();
+            SetPassPerSeconds();
             Console.WriteLine("Подключились к очереди: {0}", path);
             Console.WriteLine("Скорость: {0} паролей в секунду", _speed);
             Console.WriteLine("Доступно ядер: {0}", _core);
