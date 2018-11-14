@@ -10,8 +10,7 @@ namespace Manager2
 {
     public class Distribution
     {
-        static public List<string> _usedRange = new List<string>();      
-        static public bool _endAllVariant = true;
+        static public List<string> _usedRange = new List<string>();
         static public int _countMessage = 0;
         static private List<Agent> _agents = new List<Agent>();
 
@@ -36,16 +35,16 @@ namespace Manager2
                     return true;
 
                 return false;
-            });            
+            });
         }
 
-        public static bool NewRangeForAgent(MessageQueue queue, Agent agent, List<NewHash> hashPackage, int countTask)
+        public static bool NewRangeForAgent(MessageQueue queue, Agent agent, List<Hash> hashPackage, int countTask)
         {
             if (hashPackage.Count > 0)
             {
                 for (int i = 0; i < countTask; ++i)
                 {
-                    NewHash hash = hashPackage[_countMessage % hashPackage.Count];
+                    Hash hash = hashPackage[_countMessage % hashPackage.Count];
                     long startRange = hash.GetCurrentPos();
                     long countPswInRange = agent.GetSpeed();
 
@@ -69,14 +68,39 @@ namespace Manager2
                     {
                         for (int j = i; j < countTask; ++j)
                         {
-                            queue.Send(agent.GetIp() + " " + (agent.GetSpeed() / 60).ToString() + " " + agent.GetCore(), "ManagerStart");
+                            Manager._tempFreeAgent.Add(agent);
                         }
+
                         return false;
                     }
                 }
-            } else
+            }
+            else
             {
+                for (int j = 0; j < countTask; ++j)
+                {
+                    Manager._tempFreeAgent.Add(agent);
+                }
+
                 return false;
+            }
+
+            return true;
+        }
+
+        public static bool CheckDateCreate()
+        {
+            List<string> tempUsedRange = new List<string>();
+            tempUsedRange.AddRange(_usedRange);
+
+            foreach (string range in tempUsedRange)
+            {
+                string[] dataArr = range.Split(';');
+                string ipRemove = dataArr[0];
+                long dataOfCreateRange = long.Parse(dataArr[4]);
+
+                if (DateTime.Now.Subtract(new DateTime()).TotalSeconds - dataOfCreateRange > 120)
+                    return false;
             }
 
             return true;
@@ -85,15 +109,17 @@ namespace Manager2
         public static void DistrOfRemainRange(Manager manager, MessageQueue queue, List<Agent> agents)//+++++++++++++++++++++++++++++++++++++++++++
         {
             _countMessage = 0;
+            List<string> tempUsedRange = new List<string>();
+            tempUsedRange.AddRange(_usedRange);
+            _usedRange.Clear();
 
-            foreach(string range in _usedRange)
+            foreach (string range in tempUsedRange)
             {
-
                 string[] dataArr = range.Split(';');
                 string ipRemove = dataArr[0];
                 long dataOfCreateRange = long.Parse(dataArr[4]);
 
-                if (DateTime.Now.Subtract(new DateTime()).TotalSeconds - dataOfCreateRange > 70)
+                if (DateTime.Now.Subtract(new DateTime()).TotalSeconds - dataOfCreateRange > 120)
                 {
                     if (ipRemove != "")
                     {
@@ -108,18 +134,19 @@ namespace Manager2
             }
 
             manager.SetAgents(agents);
+            Console.WriteLine("Количество агентов {0}", manager.GetList().Count);
 
             if (agents.Count != 0)
             {
-                List<string> tempUsedRange = new List<string>();
+                List<string> temp = new List<string>();
 
-                foreach (string range in _usedRange)
+                foreach (string range in tempUsedRange)
                 {
                     string[] dataArr = range.Split(';');
                     string rangeStr = dataArr[3];
                     long dataOfCreateRange = long.Parse(dataArr[4]);
 
-                    if (DateTime.Now.Subtract(new DateTime()).TotalSeconds - dataOfCreateRange > 70)
+                    if (DateTime.Now.Subtract(new DateTime()).TotalSeconds - dataOfCreateRange > 120)
                     {
                         string[] dataArrRange = rangeStr.Split(' ');
                         long startRange = long.Parse(dataArrRange[0]);
@@ -136,23 +163,28 @@ namespace Manager2
                             long totalSecond = (long)DateTime.Now.Subtract(new DateTime()).TotalSeconds;
 
                             queue.Send(dataArr[1] + ";" + dataArr[2] + ";" + startRange + " " + countPswInRange + ";" + totalSecond.ToString(), agents[indexCurrentAgent].GetIp());
-                            tempUsedRange.Add(agents[indexCurrentAgent].GetIp() + ";" + dataArr[1] + ";" + dataArr[2] + ";" + startRange + " " + countPswInRange + ";" + totalSecond.ToString());
+                            temp.Add(agents[indexCurrentAgent].GetIp() + ";" + dataArr[1] + ";" + dataArr[2] + ";" + startRange + " " + countPswInRange + ";" + totalSecond.ToString());
 
                             totalPswInRange -= countPswInRange;
                             startRange += countPswInRange;
                             ++_countMessage;
                         }
-                    } else
+                    }
+                    else
                     {
-                        tempUsedRange.Add(range);
+                        temp.Add(range);
                     }
                 }
 
-                _usedRange = tempUsedRange;
-            } else
+                tempUsedRange.Clear();
+                tempUsedRange.AddRange(temp);
+            }
+            else
             {
                 Console.WriteLine("Нет активыных агентов!!!");
             }
-        }   
+
+            _usedRange.AddRange(tempUsedRange);
+        }
     }
 }
